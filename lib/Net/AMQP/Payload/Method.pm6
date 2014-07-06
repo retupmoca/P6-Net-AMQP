@@ -85,6 +85,13 @@ has $.method-name;
 
 method !serialize-arg($type, $value, $buf? is copy, $bitsused?) {
     given $type {
+        when 'boolean' {
+            if $value {
+                $buf = buf8.new(1);
+            } else {
+                $buf = buf8.new(0);
+            }
+        }
         when 'bit' {
             if $bitsused == 0 {
                 if $value {
@@ -98,44 +105,98 @@ method !serialize-arg($type, $value, $buf? is copy, $bitsused?) {
                 }
             }
         }
+        when 'octeti' {
+            die;
+        }
         when 'octet' {
             $buf = pack('C', $value);
+        }
+        when 'shorti' {
+            die;
         }
         when 'short' {
             $buf = pack('n', $value);
         }
+        when 'longi' {
+            die;
+        }
         when 'long' {
             $buf = pack('N', $value);
         }
+        when 'longlongi' {
+
+        }
         when 'longlong' {
             $buf = pack('N', $value +> 32);
-            $buf = pack('N', $value +& 0xFFFF);
+            $buf ~= pack('N', $value +& 0xFFFF);
+        }
+        when 'float' {
+            die;
+        }
+        when 'double' {
+            die;
+        }
+        when 'decimal' {
+            die;
         }
         when 'shortstring' {
             if $value.chars > 255 {
                 die;
             }
             $buf = pack('C', $value.chars);
-            $buf = $value.encode;
+            $buf ~= $value.encode;
         }
         when 'longstring' {
             if $value.chars > (2**32 - 1) {
                 die;
             }
             $buf = pack('N', $value.chars);
-            $buf = $value.encode;
+            $buf ~= $value.encode;
         }
-        when 'table' {
+        when 'timestamp' {
+            $buf = pack('N', $value +> 32);
+            $buf ~= pack('N', $value +& 0xFFFF);
+        }
+        when 'array' {
             die;
         }
+        when 'table' {
+            $buf = buf8.new();
+
+            for $value.kv -> $k, $v {
+                $buf ~= self!serialize-arg("shortstring", $k);
+                if $v ~~ Bool {
+                    $buf ~= 't'.encode;
+                    $buf ~= self!serialize-arg("boolean", $v);
+                } elsif $v ~~ Hash {
+                    $buf ~= 'F'.encode;
+                    $buf ~= self!serialize-arg("table", $v);
+                } elsif $v ~~ Array {
+                    $buf ~= 'A'.encode;
+                    $buf ~= self!serialize-arg("array", $v);
+                } elsif $v ~~ Int && $v >= 0 {
+                    $buf ~= 'l'.encode;
+                    $buf ~= self!serialize-arg("longlong", +$v);
+                } elsif $v ~~ Int && $v < 0 {
+                    $buf ~= 'L'.encode;
+                    $buf ~= self!serialize-arg("longlongi", +$v);
+                } else {
+                    $buf ~= 'S'.encode;
+                    $buf ~= self!serialize-arg("longstring", ~$v);
+                }
+            }
+            $buf = pack('N', $buf.bytes) ~ $buf;
+        }
     }
+
+    return $buf;
 }
 
 method Buf {
     my $args = buf8.new();
     my $bitsused = 0;
-    my $lastarg;
-    for @.signature X @.arguments -> $arg, $value {
+    my $lastarg = '';
+    for @.signature Z @.arguments -> $arg, $value {
         if $arg ne 'bit' {
             $bitsused = 0;
         }
@@ -144,6 +205,7 @@ method Buf {
         } else {
             $args ~= self!serialize-arg($arg, $value);
         }
+        $lastarg = $arg;
         $bitsused++;
         if $bitsused >= 8 {
             $bitsused = 0;
@@ -341,6 +403,6 @@ multi method new(Str $method-name, *@arguments) {
     my ($class, $method) = $method-name.split('.');
     $class-id = %standard{$class}<id>;
     $method-id = %standard{$class}<methods>{$method}<id>;
-    @signature = %standard{$class}<methods>{$method}<signature>;
+    @signature = %standard{$class}<methods>{$method}<signature>.list;
     self.bless(:$method-name, :$class-id, :$method-id, :@arguments, :@signature);
 }
