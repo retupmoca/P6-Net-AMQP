@@ -43,8 +43,8 @@ multi method new(Blob $data){
     self.bless(:$type, :$channel, :$payload);
 }
 
-multi method new(:$type, :$channel, :$payload){
-    self.bless(:$type, :$channel, :$payload
+multi method new(:$type, :$channel, :$payload) {
+    self.bless(:$type, :$channel, :$payload);
 }
 
 submethod BUILD(:$!type, :$!channel, :$!payload) { }
