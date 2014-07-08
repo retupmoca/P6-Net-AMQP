@@ -12,7 +12,7 @@ my %standard = (
                 secure-ok => { id => 21, signature => ('longstring') },
                 tune      => { id => 30, signature => ('short', 'long', 'short') },
                 tune-ok   => { id => 31, signature => ('short', 'long', 'short') },
-                open      => { id => 40, signature => ('path', 'shortstring', 'bit') },
+                open      => { id => 40, signature => ('shortstring', 'shortstring', 'bit') },
                 open-ok   => { id => 41, signature => ('shortstring') },
                 close     => { id => 50, signature => ('short', 'shortstring', 'short', 'short') },
                 close-ok  => { id => 51, signature => () } } },
@@ -147,7 +147,7 @@ multi method new(Blob $data is copy) {
             }
         }
 
-        say "arg($arg): "~$value.perl;
+        #say "arg($arg): "~$value.perl;
 
         @arguments.push($value);
         $data .= subbuf($size);

@@ -1,6 +1,6 @@
 role Net::AMQP::Payload::ArgumentSerialization;
 
-method serialize-arg($type, $value, $buf? is copy, $bitsused?) {
+method serialize-arg($type, $value, $buf? is copy, $bitsused? = 0) {
     given $type {
         when 'boolean' {
             if $value {

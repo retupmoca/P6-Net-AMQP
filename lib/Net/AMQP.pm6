@@ -2,27 +2,122 @@ class Net::AMQP;
 
 use Net::AMQP::Frame;
 
-method new() {
-    my $s = IO::Socket::INET.new(:host('localhost'), :port(5672));
-    $s.write(buf8.new(65, 77, 81, 80, 0, 0, 9, 1));
-    my $frame-head = $s.read(7);
-    my $payload-size = Net::AMQP::Frame.size($frame-head);
-    my $frame = $frame-head ~ $s.read($payload-size + 1);
-    my $payload = Net::AMQP::Frame.new($frame).payload;
-    my $parsed = Net::AMQP::Payload::Method.new($payload);
-    say "parsed:"~$parsed.perl;
+has $.host = 'localhost';
+has $.port = 5672;
 
-    my $start-ok = Net::AMQP::Payload::Method.new("connection.start-ok", { platform => "Perl6" }, "PLAIN", "\0guest\0guest", "en_US");
-    say "sent:"~$start-ok.perl;
-    $start-ok = Net::AMQP::Frame.new(type => 1, channel => 0, payload => $start-ok.Buf);
-    $s.write($start-ok.Buf);
+has $.login = 'guest';
+has $.password = 'guest';
 
-    my $frame-head = $s.read(7);
-    say $frame-head.perl;
-    my $payload-size = Net::AMQP::Frame.size($frame-head);
-    my $frame = $frame-head ~ $s.read($payload-size + 1);
-    my $payload = Net::AMQP::Frame.new($frame).payload;
-    my $parsed = Net::AMQP::Payload::Method.new($payload);
-    say "parsed:"~$parsed.perl;
+has $.vhost = '/';
+
+has $!frame-max;
+has $!channel-max;
+
+has $!promise;
+has $!vow;
+
+has $.conn;
+
+method connect(){
+    my $p = Promise.new;
+    $!vow = $p.vow;
+    $!promise = $p;
+
+    IO::Socket::Async.connect($.host, $.port).then( -> $conn {
+        $!conn = $conn.result;
+
+        my $buf = buf8.new();
+
+        $!conn.bytes_supply.tap(-> $bytes {
+            $buf ~= $bytes;
+            my $continue = True;
+            while $continue && $buf.bytes >= 7 {
+                my $payload-size = Net::AMQP::Frame.size($buf);
+                if $buf.bytes >= $payload-size + 7 + 1 { # payload + header + trailer (do we have a full frame?)
+                    my $framebuf = $buf.subbuf(0, $payload-size + 7 + 1);
+                    $buf .= subbuf($payload-size + 7 + 1);
+
+                    my $frame = Net::AMQP::Frame.new($framebuf);
+                    if $frame.type == 1 { # method
+                        my $method = Net::AMQP::Payload::Method.new($frame.payload);
+                        #say $method.perl;
+                        if $method.class-id == 10 { # connection
+                            self!handle-connection-method($method);
+                        }
+                    } elsif $frame.type == 2 { # content header
+                        # TODO
+                    } elsif $frame.type == 3 { # content body
+                        # TODO
+                    } elsif $frame.type == 4 { # heartbeat
+                        # TODO
+                    }
+                } else {
+                    $continue = False;
+                }
+            }
+        },
+        quit => {
+            $!vow.break(1);
+        },
+        done => {
+            $!vow.break(1);
+        });
+        $!conn.write(buf8.new(65, 77, 81, 80, 0, 0, 9, 1));
+    });
+    $p;
+}
+
+method !handle-connection-method($method) {
+    if $method.method-name eq 'connection.start' {
+        my $start-ok = Net::AMQP::Payload::Method.new("connection.start-ok",
+                                                      { platform => "Perl6" },
+                                                      "PLAIN",
+                                                      "\0"~$.login~"\0"~$.password,
+                                                      "en_US");
+                                                      #say $start-ok.perl;
+        $!conn.write(Net::AMQP::Frame.new(type => 1, channel => 0, payload => $start-ok.Buf).Buf);
+    } elsif $method.method-name eq 'connection.tune' {
+        $!channel-max = $method.arguments[0];
+        $!frame-max = $method.arguments[1];
+        my $tune-ok = Net::AMQP::Payload::Method.new("connection.tune-ok",
+                                                     $!channel-max,
+                                                     $!frame-max,
+                                                     0); # no heartbeat yet
+                                                     #say $tune-ok.perl;
+        $!conn.write(Net::AMQP::Frame.new(type => 1, channel => 0, payload => $tune-ok.Buf).Buf);
+
+        my $open = Net::AMQP::Payload::Method.new("connection.open",
+                                                  $.vhost, "", 0);
+                                                  #say $open.perl;
+        $!conn.write(Net::AMQP::Frame.new(type => 1, channel => 0, payload => $open.Buf).Buf);
+        #say 'here';
+    } elsif $method.method-name eq 'connection.open-ok' {
+        # we are ready to rumble
+        #say "Connection setup complete.";
+        my $p = Promise.new;
+        $!promise = $p;
+        my $v = $!vow;
+        $!vow = $p.vow;
+
+        $v.keep($p);
+    } elsif $method.method-name eq 'connection.close' {
+        my $close-ok = Net::AMQP::Payload::Method.new("connection.close-ok");
+        $!conn.write(Net::AMQP::Frame.new(type => 1, channel => 0, payload => $close-ok.Buf).Buf);
+        $!conn.close();
+        $!vow.keep(1);
+    } elsif $method.method-name eq 'connection.close-ok' {
+        $!conn.close();
+        $!vow.keep(1);
+    }
+}
+
+method close($reply-code, $reply-text, $class-id = 0, $method-id = 0) {
+    my $close = Net::AMQP::Payload::Method.new("connection.close",
+                                               $reply-code,
+                                               $reply-text,
+                                               $class-id,
+                                               $method-id);
+    $!conn.write(Net::AMQP::Frame.new(type => 1, channel => 0, payload => $close.Buf).Buf);
+    $!promise;
 }
 

@@ -26,7 +26,7 @@ method type-class {
     } elsif $!type == 3 {
         return Net::AMQP::Payload::Body;
     } elsif $!type == 4 {
-        return Net::AMQP::Payload::Method;
+        return Net::AMQP::Payload::Heartbeat;
     }
 }
 
