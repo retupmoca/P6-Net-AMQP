@@ -148,3 +148,7 @@ method open-channel(Int $id?) {
         die "NYI";
     }
 }
+
+method _remove_channel($id) {
+    %!channels{$id} = Nil;
+}

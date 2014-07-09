@@ -2,7 +2,7 @@ use v6;
 
 use Test;
 
-plan 6;
+plan 7;
 
 use Net::AMQP;
 
@@ -25,6 +25,10 @@ my $channel-promise = $n.open-channel(1);
 await $channel-promise;
 is $channel-promise.status, Kept, 'channel.open success';
 ok $channel-promise.result ~~ Net::AMQP::Channel, 'value has right class';
+
+my $chan-close-promise = $channel-promise.result.close("", "");
+await $chan-close-promise;
+is $chan-close-promise.status, Kept, 'channel.close success';
 
 my $close-promise-new = $n.close("", "");
 await $close-promise-new;
