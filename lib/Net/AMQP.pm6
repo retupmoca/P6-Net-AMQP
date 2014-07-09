@@ -1,6 +1,7 @@
 class Net::AMQP;
 
 use Net::AMQP::Frame;
+use Net::AMQP::Channel;
 
 has $.host = 'localhost';
 has $.port = 5672;
@@ -15,6 +16,8 @@ has $!channel-max;
 
 has $!promise;
 has $!vow;
+
+has %!channels;
 
 has $.conn;
 
@@ -43,11 +46,20 @@ method connect(){
                         #say $method.perl;
                         if $method.class-id == 10 { # connection
                             self!handle-connection-method($method);
+                        } elsif $method.method-name eq 'channel.open-ok' {
+                            my $v = %!channels{$frame.channel};
+                            %!channels{$frame.channel} = Net::AMQP::Channel.new(id => $frame.channel,
+                                                                                conn => self);
+                            $v.keep(%!channels{$frame.channel});
+                        } else {
+                            %!channels{$frame.channel}.handle-channel-method($method);
                         }
                     } elsif $frame.type == 2 { # content header
-                        # TODO
+                        my $header = Net::AMQP::Payload::Header.new($frame.payload);
+                        %!channels{$frame.channel}.handle-channel-content($header);
                     } elsif $frame.type == 3 { # content body
-                        # TODO
+                        my $body = Net::AMQP::Payload::Body.new($frame.payload);
+                        %!channels{$frame.channel}.handle-channel-content($body);
                     } elsif $frame.type == 4 { # heartbeat
                         # TODO
                     }
@@ -121,3 +133,18 @@ method close($reply-code, $reply-text, $class-id = 0, $method-id = 0) {
     $!promise;
 }
 
+method open-channel(Int $id?) {
+    if $id {
+        if %!channels{$id} {
+            die;
+        } else {
+            my $p = Promise.new;
+            %!channels{$id} = $p.vow;
+            my $open = Net::AMQP::Payload::Method.new("channel.open", "");
+            $!conn.write(Net::AMQP::Frame.new(type => 1, channel => $id, payload => $open.Buf).Buf);
+            return $p;
+        }
+    } else {
+        die "NYI";
+    }
+}
