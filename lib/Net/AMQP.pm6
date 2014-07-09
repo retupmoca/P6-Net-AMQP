@@ -21,10 +21,39 @@ has %!channels;
 
 has $.conn;
 
+has $!frame-supply;
+
 method connect(){
     my $p = Promise.new;
     $!vow = $p.vow;
     $!promise = $p;
+
+    $!frame-supply = Supply.new;
+
+    $!frame-supply.tap(-> $frame {
+        if $frame.type == 1 { # method
+            my $method = Net::AMQP::Payload::Method.new($frame.payload);
+            #say $method.perl;
+            if $method.class-id == 10 { # connection
+                self!handle-connection-method($method);
+            } elsif $method.method-name eq 'channel.open-ok' {
+                my $v = %!channels{$frame.channel};
+                %!channels{$frame.channel} = Net::AMQP::Channel.new(id => $frame.channel,
+                                                                    conn => self);
+                $v.keep(%!channels{$frame.channel});
+            } else {
+                %!channels{$frame.channel}.handle-channel-method($method);
+            }
+        } elsif $frame.type == 2 { # content header
+            my $header = Net::AMQP::Payload::Header.new($frame.payload);
+            %!channels{$frame.channel}.handle-channel-content($header);
+        } elsif $frame.type == 3 { # content body
+            my $body = Net::AMQP::Payload::Body.new($frame.payload);
+            %!channels{$frame.channel}.handle-channel-content($body);
+        } elsif $frame.type == 4 { # heartbeat
+            # TODO
+        }
+    });
 
     IO::Socket::Async.connect($.host, $.port).then( -> $conn {
         $!conn = $conn.result;
@@ -41,28 +70,8 @@ method connect(){
                     $buf .= subbuf($payload-size + 7 + 1);
 
                     my $frame = Net::AMQP::Frame.new($framebuf);
-                    if $frame.type == 1 { # method
-                        my $method = Net::AMQP::Payload::Method.new($frame.payload);
-                        #say $method.perl;
-                        if $method.class-id == 10 { # connection
-                            self!handle-connection-method($method);
-                        } elsif $method.method-name eq 'channel.open-ok' {
-                            my $v = %!channels{$frame.channel};
-                            %!channels{$frame.channel} = Net::AMQP::Channel.new(id => $frame.channel,
-                                                                                conn => self);
-                            $v.keep(%!channels{$frame.channel});
-                        } else {
-                            %!channels{$frame.channel}.handle-channel-method($method);
-                        }
-                    } elsif $frame.type == 2 { # content header
-                        my $header = Net::AMQP::Payload::Header.new($frame.payload);
-                        %!channels{$frame.channel}.handle-channel-content($header);
-                    } elsif $frame.type == 3 { # content body
-                        my $body = Net::AMQP::Payload::Body.new($frame.payload);
-                        %!channels{$frame.channel}.handle-channel-content($body);
-                    } elsif $frame.type == 4 { # heartbeat
-                        # TODO
-                    }
+
+                    $!frame-supply.more($frame);
                 } else {
                     $continue = False;
                 }
