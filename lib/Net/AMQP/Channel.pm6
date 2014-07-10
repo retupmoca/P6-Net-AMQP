@@ -27,33 +27,19 @@ method open {
         $v.keep(self);
     });
 
+    $!methods.grep(*.method-name eq 'channel.flow').tap({
+        1; # TODO
+    });
+
+    $!methods.grep(*.method-name eq 'channel.close').tap({
+        1; # TODO
+    });
+
     my $open = Net::AMQP::Payload::Method.new("channel.open", "");
     $!conn.write(Net::AMQP::Frame.new(type => 1, channel => $.id, payload => $open.Buf).Buf);
 
     return $p;
 }
-
-# unused
-# only stays here as a reference for methods I need to implement
-method handle-channel-method($method) {
-    given $method.method-name {
-        when 'channel.close' {
-
-        }
-        when 'channel.flow' {
-
-        }
-        when 'channel.flow-ok' {
-
-        }
-
-        when 'basic.qos-ok' {
-
-        }
-    }
-}
-
-###
 
 method close($reply-code, $reply-text, $class-id = 0, $method-id = 0) {
     my $p = Promise.new;
@@ -75,13 +61,43 @@ method close($reply-code, $reply-text, $class-id = 0, $method-id = 0) {
 }
 
 method declare-exchange {
-    #Net::AMQP::Exchange
+    # TODO
 }
 
 method declare-queue {
-    #Net::AMQP::Queue
+    # TODO
 }
 
 method qos($prefetch-size, $prefetch-count, $global){
+    my $p = Promise.new;
+    my $v = $p.vow;
 
+    my $tap = $!methods.grep(*.method-name eq 'channel.qos-ok').tap({
+        #$tap.close;
+
+        $v.keep(1);
+    });
+
+    my $qos = Net::AMQP::Payload::Method.new("channel.qos",
+                                             $prefetch-size,
+                                             $prefetch-count,
+                                             $global);
+    $!conn.write(Net::AMQP::Frame.new(type => 1, channel => $.id, payload => $qos.Buf).Buf);
+    return $p;
+}
+
+method flow($status) {
+    my $p = Promise.new;
+    my $v = $p.vow;
+
+    my $tap = $!methods.grep(*.method-name eq 'channel.flow-ok').tap({
+        #$tap.close;
+
+        $v.keep(1);
+    });
+
+    my $flow = Net::AMQP::Payload::Method.new("channel.flow",
+                                             $status);
+    $!conn.write(Net::AMQP::Frame.new(type => 1, channel => $.id, payload => $flow.Buf).Buf);
+    return $p;
 }
