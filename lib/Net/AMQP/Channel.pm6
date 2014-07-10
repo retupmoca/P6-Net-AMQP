@@ -22,7 +22,7 @@ method open {
     my $v = $p.vow;
 
     my $tap = $!methods.grep(*.method-name eq 'channel.open-ok').tap({
-        #$tap.close;
+        $tap.close;
 
         $v.keep(self);
     });
@@ -46,7 +46,7 @@ method close($reply-code, $reply-text, $class-id = 0, $method-id = 0) {
     my $v = $p.vow;
 
     my $tap = $!methods.grep(*.method-name eq 'channel.close-ok').tap({
-        #$tap.close;
+        $tap.close;
 
         $v.keep(1);
     });
@@ -73,7 +73,7 @@ method qos($prefetch-size, $prefetch-count, $global){
     my $v = $p.vow;
 
     my $tap = $!methods.grep(*.method-name eq 'channel.qos-ok').tap({
-        #$tap.close;
+        $tap.close;
 
         $v.keep(1);
     });
@@ -91,7 +91,7 @@ method flow($status) {
     my $v = $p.vow;
 
     my $tap = $!methods.grep(*.method-name eq 'channel.flow-ok').tap({
-        #$tap.close;
+        $tap.close;
 
         $v.keep(1);
     });

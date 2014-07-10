@@ -40,7 +40,7 @@ method connect(){
     # once these are hit, we will never need them again
     ###
     my $connstart = $!method-supply.grep(*<method>.method-name eq 'connection.start').tap({
-        #$connstart.close;
+        $connstart.close;
 
         my $start-ok = Net::AMQP::Payload::Method.new("connection.start-ok",
                                                       { platform => "Perl6" },
@@ -51,7 +51,7 @@ method connect(){
     });
 
     my $conntune = $!method-supply.grep(*<method>.method-name eq 'connection.tune').tap({
-        #$conntune.close;
+        $conntune.close;
 
         $!channel-max = $_<method>.arguments[0];
         $!frame-max = $_<method>.arguments[1];
@@ -69,7 +69,7 @@ method connect(){
     });
 
     my $connopen = $!method-supply.grep(*<method>.method-name eq 'connection.open-ok').tap({
-        #$connopen.close;
+        $connopen.close;
 
         my $p = Promise.new;
         $!promise = $p;
@@ -124,7 +124,7 @@ method connect(){
 method close($reply-code, $reply-text, $class-id = 0, $method-id = 0) {
 
     my $tap = $!method-supply.grep(*<method>.method-name eq 'connection.close-ok').tap({
-        #$tap.close;
+        $tap.close;
 
         $!conn.close;
         $!vow.keep(1);
