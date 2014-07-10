@@ -17,9 +17,7 @@ has $!channel-max;
 has $!promise;
 has $!vow;
 
-has %!channels;
-
-has $.conn;
+has $!conn;
 
 has $!frame-supply;
 
@@ -36,6 +34,11 @@ method connect(){
                                     .map({ (channel => $_.channel,
                                             method  => Net::AMQP::Payload::Method.new($_.payload)).hash });
 
+    ###
+    # initial connection setup
+    #
+    # once these are hit, we will never need them again
+    ###
     my $connstart = $!method-supply.grep(*<method>.method-name eq 'connection.start').tap({
         #$connstart.close;
 
@@ -75,23 +78,14 @@ method connect(){
 
         $v.keep($p);
     });
+    ###
+    ###
 
     $!method-supply.grep(*<method>.method-name eq 'connection.close').tap({
         my $close-ok = Net::AMQP::Payload::Method.new("connection.close-ok");
         $!conn.write(Net::AMQP::Frame.new(type => 1, channel => 0, payload => $close-ok.Buf).Buf);
         $!conn.close();
         $!vow.keep(1);
-    });
-
-    $!method-supply.grep(*<method>.method-name eq 'channel.open-ok').tap({
-        my $v = %!channels{$_<channel>};
-        %!channels{$_<channel>} = Net::AMQP::Channel.new(id => $_<channel>,
-                                                            conn => self);
-        $v.keep(%!channels{$_<channel>});
-    });
-
-    $!method-supply.grep({$_<method>.class-id != 10 && $_<method>.method-name ne 'channel.open-ok'}).tap({
-        %!channels{$_<channel>}.handle-channel-method($_<method>);
     });
 
     IO::Socket::Async.connect($.host, $.port).then( -> $conn {
@@ -146,21 +140,10 @@ method close($reply-code, $reply-text, $class-id = 0, $method-id = 0) {
 }
 
 method open-channel(Int $id?) {
-    if $id {
-        if %!channels{$id} {
-            die;
-        } else {
-            my $p = Promise.new;
-            %!channels{$id} = $p.vow;
-            my $open = Net::AMQP::Payload::Method.new("channel.open", "");
-            $!conn.write(Net::AMQP::Frame.new(type => 1, channel => $id, payload => $open.Buf).Buf);
-            return $p;
-        }
-    } else {
-        die "NYI";
+    if !$id {
+        die "NYI - please pass an id for now";
     }
-}
-
-method _remove_channel($id) {
-    %!channels{$id} = Nil;
+    return Net::AMQP::Channel.new(id => $id,
+                                  conn => $!conn,
+                                  methods => $!method-supply.grep(*<channel> == $id).map(*<method>)).open;
 }
