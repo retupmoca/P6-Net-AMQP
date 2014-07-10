@@ -23,6 +23,8 @@ has $.conn;
 
 has $!frame-supply;
 
+has $!method-supply;
+
 method connect(){
     my $p = Promise.new;
     $!vow = $p.vow;
@@ -30,29 +32,66 @@ method connect(){
 
     $!frame-supply = Supply.new;
 
-    $!frame-supply.tap(-> $frame {
-        if $frame.type == 1 { # method
-            my $method = Net::AMQP::Payload::Method.new($frame.payload);
-            #say $method.perl;
-            if $method.class-id == 10 { # connection
-                self!handle-connection-method($method);
-            } elsif $method.method-name eq 'channel.open-ok' {
-                my $v = %!channels{$frame.channel};
-                %!channels{$frame.channel} = Net::AMQP::Channel.new(id => $frame.channel,
-                                                                    conn => self);
-                $v.keep(%!channels{$frame.channel});
-            } else {
-                %!channels{$frame.channel}.handle-channel-method($method);
-            }
-        } elsif $frame.type == 2 { # content header
-            my $header = Net::AMQP::Payload::Header.new($frame.payload);
-            %!channels{$frame.channel}.handle-channel-content($header);
-        } elsif $frame.type == 3 { # content body
-            my $body = Net::AMQP::Payload::Body.new($frame.payload);
-            %!channels{$frame.channel}.handle-channel-content($body);
-        } elsif $frame.type == 4 { # heartbeat
-            # TODO
-        }
+    $!method-supply = $!frame-supply.grep({ $_.type == 1 })\
+                                    .map({ (channel => $_.channel,
+                                            method  => Net::AMQP::Payload::Method.new($_.payload)).hash });
+
+    my $connstart = $!method-supply.grep(*<method>.method-name eq 'connection.start').tap({
+        #$connstart.close;
+
+        my $start-ok = Net::AMQP::Payload::Method.new("connection.start-ok",
+                                                      { platform => "Perl6" },
+                                                      "PLAIN",
+                                                      "\0"~$.login~"\0"~$.password,
+                                                      "en_US");
+        $!conn.write(Net::AMQP::Frame.new(type => 1, channel => 0, payload => $start-ok.Buf).Buf);
+    });
+
+    my $conntune = $!method-supply.grep(*<method>.method-name eq 'connection.tune').tap({
+        #$conntune.close;
+
+        $!channel-max = $_<method>.arguments[0];
+        $!frame-max = $_<method>.arguments[1];
+        my $tune-ok = Net::AMQP::Payload::Method.new("connection.tune-ok",
+                                                     $!channel-max,
+                                                     $!frame-max,
+                                                     0); # no heartbeat yet
+                                                     #say $tune-ok.perl;
+        $!conn.write(Net::AMQP::Frame.new(type => 1, channel => 0, payload => $tune-ok.Buf).Buf);
+
+        my $open = Net::AMQP::Payload::Method.new("connection.open",
+                                                  $.vhost, "", 0);
+                                                  #say $open.perl;
+        $!conn.write(Net::AMQP::Frame.new(type => 1, channel => 0, payload => $open.Buf).Buf);
+    });
+
+    my $connopen = $!method-supply.grep(*<method>.method-name eq 'connection.open-ok').tap({
+        #$connopen.close;
+
+        my $p = Promise.new;
+        $!promise = $p;
+        my $v = $!vow;
+        $!vow = $p.vow;
+
+        $v.keep($p);
+    });
+
+    $!method-supply.grep(*<method>.method-name eq 'connection.close').tap({
+        my $close-ok = Net::AMQP::Payload::Method.new("connection.close-ok");
+        $!conn.write(Net::AMQP::Frame.new(type => 1, channel => 0, payload => $close-ok.Buf).Buf);
+        $!conn.close();
+        $!vow.keep(1);
+    });
+
+    $!method-supply.grep(*<method>.method-name eq 'channel.open-ok').tap({
+        my $v = %!channels{$_<channel>};
+        %!channels{$_<channel>} = Net::AMQP::Channel.new(id => $_<channel>,
+                                                            conn => self);
+        $v.keep(%!channels{$_<channel>});
+    });
+
+    $!method-supply.grep({$_<method>.class-id != 10 && $_<method>.method-name ne 'channel.open-ok'}).tap({
+        %!channels{$_<channel>}.handle-channel-method($_<method>);
     });
 
     IO::Socket::Async.connect($.host, $.port).then( -> $conn {
@@ -88,51 +127,15 @@ method connect(){
     $p;
 }
 
-method !handle-connection-method($method) {
-    if $method.method-name eq 'connection.start' {
-        my $start-ok = Net::AMQP::Payload::Method.new("connection.start-ok",
-                                                      { platform => "Perl6" },
-                                                      "PLAIN",
-                                                      "\0"~$.login~"\0"~$.password,
-                                                      "en_US");
-                                                      #say $start-ok.perl;
-        $!conn.write(Net::AMQP::Frame.new(type => 1, channel => 0, payload => $start-ok.Buf).Buf);
-    } elsif $method.method-name eq 'connection.tune' {
-        $!channel-max = $method.arguments[0];
-        $!frame-max = $method.arguments[1];
-        my $tune-ok = Net::AMQP::Payload::Method.new("connection.tune-ok",
-                                                     $!channel-max,
-                                                     $!frame-max,
-                                                     0); # no heartbeat yet
-                                                     #say $tune-ok.perl;
-        $!conn.write(Net::AMQP::Frame.new(type => 1, channel => 0, payload => $tune-ok.Buf).Buf);
-
-        my $open = Net::AMQP::Payload::Method.new("connection.open",
-                                                  $.vhost, "", 0);
-                                                  #say $open.perl;
-        $!conn.write(Net::AMQP::Frame.new(type => 1, channel => 0, payload => $open.Buf).Buf);
-        #say 'here';
-    } elsif $method.method-name eq 'connection.open-ok' {
-        # we are ready to rumble
-        #say "Connection setup complete.";
-        my $p = Promise.new;
-        $!promise = $p;
-        my $v = $!vow;
-        $!vow = $p.vow;
-
-        $v.keep($p);
-    } elsif $method.method-name eq 'connection.close' {
-        my $close-ok = Net::AMQP::Payload::Method.new("connection.close-ok");
-        $!conn.write(Net::AMQP::Frame.new(type => 1, channel => 0, payload => $close-ok.Buf).Buf);
-        $!conn.close();
-        $!vow.keep(1);
-    } elsif $method.method-name eq 'connection.close-ok' {
-        $!conn.close();
-        $!vow.keep(1);
-    }
-}
-
 method close($reply-code, $reply-text, $class-id = 0, $method-id = 0) {
+
+    my $tap = $!method-supply.grep(*<method>.method-name eq 'connection.close-ok').tap({
+        #$tap.close;
+
+        $!conn.close;
+        $!vow.keep(1);
+    });
+
     my $close = Net::AMQP::Payload::Method.new("connection.close",
                                                $reply-code,
                                                $reply-text,
