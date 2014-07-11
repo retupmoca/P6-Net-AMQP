@@ -57,39 +57,41 @@ method connect(){
         $!frame-max = $_<method>.arguments[1];
         my $to = $_<method>.arguments[2];
 
-        my $ih = Promise.new;
-        $!frame-supply.tap({
-            $ih.keep(1);
-            Promise.anyof(Promise.in($to * 2),
-                          $ih).then({
-                if $ih.status == Kept {
-                    $ih = Promise.new;
-                } else {
-                    # Timeout!
-                    # TODO shut things down
-                }
-            });
-        });
-
-        my $c = $!conn;
-        my $ob = Promise.new;
-        $!conn = class {
-            method write($stuff) {
-                $c.write($stuff);
-                $ob.keep(1);
-                Promise.anyof(Promise.in($to),
-                              $ob).then({
-                    if $ob.status == Kept {
-                        $ob = Promise.new;
+        if $to {
+            my $ih = Promise.new;
+            $!frame-supply.tap({
+                $ih.keep(1);
+                Promise.anyof(Promise.in($to * 2),
+                              $ih).then({
+                    if $ih.status == Kept {
+                        $ih = Promise.new;
                     } else {
-                        self.write(Net::AMQP::Frame.new(type => 4, channel => 0,
-                                                        payload => Net::AMQP::Payload::Heartbeat.new));
+                        # Timeout!
+                        # TODO shut things down
                     }
                 });
-            }
-            method real { $c }
-            method close { $c.close }
-        };
+            });
+
+            my $c = $!conn;
+            my $ob = Promise.new;
+            $!conn = class {
+                method write($stuff) {
+                    $c.write($stuff);
+                    $ob.keep(1);
+                    Promise.anyof(Promise.in($to),
+                                  $ob).then({
+                        if $ob.status == Kept {
+                            $ob = Promise.new;
+                        } else {
+                            self.write(Net::AMQP::Frame.new(type => 4, channel => 0,
+                                                            payload => Net::AMQP::Payload::Heartbeat.new));
+                        }
+                    });
+                }
+                method real { $c }
+                method close { $c.close }
+            };
+        }
 
         my $tune-ok = Net::AMQP::Payload::Method.new("connection.tune-ok",
                                                      $!channel-max,
