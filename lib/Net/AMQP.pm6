@@ -55,10 +55,46 @@ method connect(){
 
         $!channel-max = $_<method>.arguments[0];
         $!frame-max = $_<method>.arguments[1];
+        my $to = $_<method>.arguments[2];
+
+        my $ih = Promise.new;
+        $!frame-supply.tap({
+            $ih.keep(1);
+            Promise.anyof(Promise.in($to * 2),
+                          $ih).then({
+                if $ih.status == Kept {
+                    $ih = Promise.new;
+                } else {
+                    # Timeout!
+                    # TODO shut things down
+                }
+            });
+        });
+
+        my $c = $!conn;
+        my $ob = Promise.new;
+        $!conn = class {
+            method write($stuff) {
+                $c.write($stuff);
+                $ob.keep(1);
+                Promise.anyof(Promise.in($to),
+                              $ob).then({
+                    if $ob.status == Kept {
+                        $ob = Promise.new;
+                    } else {
+                        self.write(Net::AMQP::Frame.new(type => 4, channel => 0,
+                                                        payload => Net::AMQP::Payload::Heartbeat.new));
+                    }
+                });
+            }
+            method real { $c }
+            method close { $c.close }
+        };
+
         my $tune-ok = Net::AMQP::Payload::Method.new("connection.tune-ok",
                                                      $!channel-max,
                                                      $!frame-max,
-                                                     0); # no heartbeat yet
+                                                     $to);
                                                      #say $tune-ok.perl;
         $!conn.write(Net::AMQP::Frame.new(type => 1, channel => 0, payload => $tune-ok.Buf).Buf);
 
