@@ -68,17 +68,17 @@ method declare-queue {
     # TODO
 }
 
-method qos($prefetch-size, $prefetch-count, $global){
+method qos($prefetch-size, $prefetch-count, $global = 0){
     my $p = Promise.new;
     my $v = $p.vow;
 
-    my $tap = $!methods.grep(*.method-name eq 'channel.qos-ok').tap({
+    my $tap = $!methods.grep(*.method-name eq 'basic.qos-ok').tap({
         $tap.close;
 
         $v.keep(1);
     });
 
-    my $qos = Net::AMQP::Payload::Method.new("channel.qos",
+    my $qos = Net::AMQP::Payload::Method.new("basic.qos",
                                              $prefetch-size,
                                              $prefetch-count,
                                              $global);
@@ -99,5 +99,21 @@ method flow($status) {
     my $flow = Net::AMQP::Payload::Method.new("channel.flow",
                                              $status);
     $!conn.write(Net::AMQP::Frame.new(type => 1, channel => $.id, payload => $flow.Buf).Buf);
+    return $p;
+}
+
+method recover($requeue) {
+    my $p = Promise.new;
+    my $v = $p.vow;
+
+    my $tap = $!methods.grep(*.method-name eq 'basic.recover-ok').tap({
+        $tap.close;
+
+        $v.keep(1);
+    });
+
+    my $recover = Net::AMQP::Payload::Method.new("basic.recover",
+                                              $requeue);
+    $!conn.write(Net::AMQP::Frame.new(type => 1, channel => $.id, payload => $recover.Buf).Buf);
     return $p;
 }

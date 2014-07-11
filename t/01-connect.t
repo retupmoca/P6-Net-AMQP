@@ -2,7 +2,7 @@ use v6;
 
 use Test;
 
-plan 7;
+plan 4;
 
 use Net::AMQP;
 
@@ -14,21 +14,12 @@ my $initial-promise = $n.connect;
 my $timeout = Promise.in(5);
 await Promise.anyof($initial-promise, $timeout);
 unless $initial-promise.status == Kept {
-    skip "Unable to connect. Please run RabbitMQ on localhost with default credentials.", 5;
+    skip "Unable to connect. Please run RabbitMQ on localhost with default credentials.", 3;
     exit;
 }
 is $initial-promise.status, Kept, 'Initial connection successful';
 
 my $close-promise = $initial-promise.result;
-
-my $channel-promise = $n.open-channel(1);
-await $channel-promise;
-is $channel-promise.status, Kept, 'channel.open success';
-ok $channel-promise.result ~~ Net::AMQP::Channel, 'value has right class';
-
-my $chan-close-promise = $channel-promise.result.close("", "");
-await $chan-close-promise;
-is $chan-close-promise.status, Kept, 'channel.close success';
 
 my $close-promise-new = $n.close("", "");
 await $close-promise-new;
