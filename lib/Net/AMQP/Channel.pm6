@@ -15,7 +15,15 @@ has $!headers;
 has $!bodies;
 #
 
-submethod BUILD(:$!id, :$!conn, :$!methods, :$!headers, :$!bodies) { }
+has $!flow-stopped;
+has $!write-lock;
+
+submethod BUILD(:$!id, :$!conn, :$!methods, :$!headers, :$!bodies) {
+    $!write-lock = Lock.new;
+    my $wl = $!write-lock;
+    my $c = $!conn;
+    $!conn = class { method write($stuff) { $wl.protect: { $c.write($stuff); }; }; method real { $c }; };
+}
 
 method open {
     my $p = Promise.new;
@@ -28,7 +36,22 @@ method open {
     });
 
     $!methods.grep(*.method-name eq 'channel.flow').tap({
-        1; # TODO
+        my $flow-ok = Net::AMQP::Payload::Method.new("channel.flow-ok",
+                                                     $_.arguments[0]);
+        if $_.arguments[0] {
+            if $!flow-stopped {
+                $!conn.real.write(Net::AMQP::Frame.new(type => 1, channel => $.id, payload => $flow-ok.Buf).Buf);
+                $!write-lock.unlock();
+                $!flow-stopped = 0;
+            }
+        } else {
+            unless $!flow-stopped {
+                $!flow-stopped = 1;
+                $!write-lock.lock();
+                $!conn.real.write(Net::AMQP::Frame.new(type => 1, channel => $.id, payload => $flow-ok.Buf).Buf);
+            }
+        }
+
     });
 
     $!methods.grep(*.method-name eq 'channel.close').tap({
