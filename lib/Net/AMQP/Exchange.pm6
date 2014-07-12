@@ -65,7 +65,6 @@ method publish(:$routing-key = "", :$mandatory, :$immediate, :$content-type = ""
                :$app-id = "", :$body is copy, *%headers) {
 
     #method
-    say 'publish';
     my $publish = Net::AMQP::Payload::Method.new('basic.publish',
                                                  0,
                                                  $.name,
