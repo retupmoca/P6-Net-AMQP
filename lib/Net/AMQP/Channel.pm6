@@ -8,6 +8,7 @@ use Net::AMQP::Frame;
 
 has $.id;
 has $!conn;
+has $!login;
 
 # supplies
 has $!methods;
@@ -18,7 +19,7 @@ has $!bodies;
 has $!flow-stopped;
 has $!write-lock;
 
-submethod BUILD(:$!id, :$!conn, :$!methods, :$!headers, :$!bodies) {
+submethod BUILD(:$!id, :$!conn, :$!methods, :$!headers, :$!bodies, :$!login) {
     $!write-lock = Lock.new;
     my $wl = $!write-lock;
     my $c = $!conn;
@@ -89,6 +90,7 @@ method declare-exchange($name, $type, :$durable = 0, :$passive = 0) {
                                    :$durable,
                                    :$passive,
                                    conn => $!conn,
+                                   login => $!login,
                                    methods => $!methods,
                                    channel => $.id).declare;
 }
@@ -96,6 +98,7 @@ method declare-exchange($name, $type, :$durable = 0, :$passive = 0) {
 method exchange($name = "") {
     return Net::AMQP::Exchange.new(:$name,
                                    conn => $!conn,
+                                   login => $!login,
                                    methods => $!methods,
                                    channel => $.id);
 }
