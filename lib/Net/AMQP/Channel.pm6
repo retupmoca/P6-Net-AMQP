@@ -18,9 +18,11 @@ has $!bodies;
 
 has $!flow-stopped;
 has $!write-lock;
+has $!channel-lock;
 
 submethod BUILD(:$!id, :$!conn, :$!methods, :$!headers, :$!bodies, :$!login) {
     $!write-lock = Lock.new;
+    $!channel-lock = Lock.new;
     my $wl = $!write-lock;
     my $c = $!conn;
     $!conn = class { method write($stuff) { $wl.protect: { $c.write($stuff); }; }; method real { $c }; };
@@ -80,7 +82,9 @@ method close($reply-code, $reply-text, $class-id = 0, $method-id = 0) {
                                                $reply-text,
                                                $class-id,
                                                $method-id);
-    $!conn.write(Net::AMQP::Frame.new(type => 1, channel => $.id, payload => $close.Buf).Buf);
+    $!channel-lock.protect: {
+        $!conn.write(Net::AMQP::Frame.new(type => 1, channel => $.id, payload => $close.Buf).Buf);
+    };
     return $p;
 }
 
@@ -90,6 +94,7 @@ method declare-exchange($name, $type, :$durable = 0, :$passive = 0) {
                                    :$durable,
                                    :$passive,
                                    conn => $!conn,
+                                   channel-lock => $!channel-lock,
                                    login => $!login,
                                    methods => $!methods,
                                    channel => $.id).declare;
@@ -98,6 +103,7 @@ method declare-exchange($name, $type, :$durable = 0, :$passive = 0) {
 method exchange($name = "") {
     return Net::AMQP::Exchange.new(:$name,
                                    conn => $!conn,
+                                   channel-lock => $!channel-lock,
                                    login => $!login,
                                    methods => $!methods,
                                    channel => $.id);
@@ -121,7 +127,9 @@ method qos($prefetch-size, $prefetch-count, $global = 0){
                                              $prefetch-size,
                                              $prefetch-count,
                                              $global);
-    $!conn.write(Net::AMQP::Frame.new(type => 1, channel => $.id, payload => $qos.Buf).Buf);
+    $!channel-lock.protect: {
+        $!conn.write(Net::AMQP::Frame.new(type => 1, channel => $.id, payload => $qos.Buf).Buf);
+    };
     return $p;
 }
 
@@ -137,7 +145,9 @@ method flow($status) {
 
     my $flow = Net::AMQP::Payload::Method.new("channel.flow",
                                              $status);
-    $!conn.write(Net::AMQP::Frame.new(type => 1, channel => $.id, payload => $flow.Buf).Buf);
+    $!channel-lock.protect: {
+        $!conn.write(Net::AMQP::Frame.new(type => 1, channel => $.id, payload => $flow.Buf).Buf);
+    }
     return $p;
 }
 
@@ -153,6 +163,8 @@ method recover($requeue) {
 
     my $recover = Net::AMQP::Payload::Method.new("basic.recover",
                                               $requeue);
-    $!conn.write(Net::AMQP::Frame.new(type => 1, channel => $.id, payload => $recover.Buf).Buf);
+    $!channel-lock.protect: {
+        $!conn.write(Net::AMQP::Frame.new(type => 1, channel => $.id, payload => $recover.Buf).Buf);
+    }
     return $p;
 }
