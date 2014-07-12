@@ -3,6 +3,8 @@ class Net::AMQP;
 use Net::AMQP::Frame;
 use Net::AMQP::Channel;
 
+use Net::AMQP::Payload::Heartbeat;
+
 has $.host = 'localhost';
 has $.port = 5672;
 
@@ -61,11 +63,11 @@ method connect(){
             my $ih = Promise.new;
             $!frame-supply.tap({
                 $ih.keep(1);
+                $ih = Promise.new;
+                my $tmp = $ih;
                 Promise.anyof(Promise.in($to * 2),
-                              $ih).then({
-                    if $ih.status == Kept {
-                        $ih = Promise.new;
-                    } else {
+                              $tmp).then({
+                    unless $tmp.status == Kept {
                         # Timeout!
                         # TODO shut things down
                     }
@@ -73,24 +75,24 @@ method connect(){
             });
 
             my $c = $!conn;
-            my $ob = Promise.new;
-            $!conn = class {
+            $!conn = (class {
+                has $!ob = Promise.new;
                 method write($stuff) {
                     $c.write($stuff);
-                    $ob.keep(1);
+                    $!ob.keep(1);
+                    $!ob = Promise.new;
+                    my $tmp = $!ob;
                     Promise.anyof(Promise.in($to),
-                                  $ob).then({
-                        if $ob.status == Kept {
-                            $ob = Promise.new;
-                        } else {
-                            self.write(Net::AMQP::Frame.new(type => 4, channel => 0,
-                                                            payload => Net::AMQP::Payload::Heartbeat.new));
+                                  $tmp).then({
+                        unless $tmp.status == Kept {
+                            self.write(Net::AMQP::Frame.new(type => 8, channel => 0,
+                                                            payload => Net::AMQP::Payload::Heartbeat.new.Buf).Buf);
                         }
                     });
                 }
                 method real { $c }
                 method close { $c.close }
-            };
+            }).new;
         }
 
         my $tune-ok = Net::AMQP::Payload::Method.new("connection.tune-ok",

@@ -1,7 +1,7 @@
 class Net::AMQP::Payload::Heartbeat;
 
 method Buf {
-    return buf8.new(8, 0, 0);
+    return buf8.new();
 }
 
-method new($data?) { }
+method new($data?) { self.bless(); }
