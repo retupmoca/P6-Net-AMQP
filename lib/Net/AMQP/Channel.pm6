@@ -83,8 +83,21 @@ method close($reply-code, $reply-text, $class-id = 0, $method-id = 0) {
     return $p;
 }
 
-method declare-exchange {
-    # TODO
+method declare-exchange($name, $type, :$durable = 0, :$passive = 0) {
+    return Net::AMQP::Exchange.new(:$name,
+                                   :$type,
+                                   :$durable,
+                                   :$passive,
+                                   conn => $!conn,
+                                   methods => $!methods,
+                                   channel => $.id).declare;
+}
+
+method exchange($name = "") {
+    return Net::AMQP::Exchange.new(:$name,
+                                   conn => $!conn,
+                                   methods => $!methods,
+                                   channel => $.id);
 }
 
 method declare-queue {

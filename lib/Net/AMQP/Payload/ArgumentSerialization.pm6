@@ -18,7 +18,8 @@ method serialize-arg($type, $value, $buf? is copy, $bitsused? = 0) {
                 }
             } else {
                 if $value {
-                    $buf[0] = $buf[0] +| (1 +< $bitsused);
+                    $buf = buf8.new($buf[0] +| (1 +< $bitsused));
+                    #$buf[0] = $buf[0] +| (1 +< $bitsused);
                 }
             }
         }

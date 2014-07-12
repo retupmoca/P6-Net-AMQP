@@ -93,13 +93,17 @@ method Buf {
         if $arg ne 'bit' {
             $bitsused = 0;
         }
-        if $lastarg eq 'bit' && $bitsused {
-            $args[*-1] = self.serialize-arg($arg, $value, $args[*-1], $bitsused);
+        if $arg eq 'bit' && $bitsused {
+            my $tmp = self.serialize-arg($arg, $value, $args.subbuf($args.bytes - 1), $bitsused);
+            $args = $args.subbuf(0, $args.bytes - 1) ~ $tmp;
+            #$args[*-1] = self.serialize-arg($arg, $value, $args[*-1], $bitsused);
         } else {
             $args ~= self.serialize-arg($arg, $value);
         }
         $lastarg = $arg;
-        $bitsused++;
+        if $arg eq 'bit' {
+            $bitsused++;
+        }
         if $bitsused >= 8 {
             $bitsused = 0;
         }
@@ -146,8 +150,6 @@ multi method new(Blob $data is copy) {
                 $bitbuf = $data.subbuf(0, 1);
             }
         }
-
-        #say "arg($arg): "~$value.perl;
 
         @arguments.push($value);
         $data .= subbuf($size);
