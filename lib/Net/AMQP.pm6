@@ -24,6 +24,8 @@ has $!conn;
 has $!frame-supply;
 
 has $!method-supply;
+has $!header-supply;
+has $!body-supply;
 
 method connect(){
     my $p = Promise.new;
@@ -35,7 +37,13 @@ method connect(){
     $!method-supply = $!frame-supply.grep({ $_.type == 1 })\
                                     .map({ (channel => $_.channel,
                                             method  => Net::AMQP::Payload::Method.new($_.payload)).hash });
-
+    $!header-supply = $!frame-supply.grep({ $_.type == 2 })\
+                                    .map({ (channel => $_.channel,
+                                            header  => Net::AMQP::Payload::Header.new($_.payload)).hash });
+    $!body-supply = $!frame-supply.grep({ $_.type == 3 })\
+                                    .map({ (channel => $_.channel,
+                                            payload  => $_.payload).hash });
+    
     ###
     # initial connection setup
     #
@@ -186,5 +194,7 @@ method open-channel(Int $id?) {
     return Net::AMQP::Channel.new(id => $id,
                                   conn => $!conn,
                                   login => $!login,
+                                  headers => $!header-supply.grep(*<channel> == $id).map(*<header>),
+                                  bodies => $!body-supply.grep(*<channel> == $id).map(*<payload>),
                                   methods => $!method-supply.grep(*<channel> == $id).map(*<method>)).open;
 }

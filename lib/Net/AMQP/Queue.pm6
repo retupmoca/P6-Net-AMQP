@@ -103,16 +103,102 @@ method get {
 
 }
 
-method consume {
+method consume(:$consumer-tag = "", :$exclusive, :$no-local, :$ack, *%arguments) {
+    my $p = Promise.new;
+    my $v = $p.vow;
 
+    my $tap = $!methods.grep(*.method-name eq 'basic.consume-ok').tap({
+        $tap.close;
+
+        $v.keep($_.arguments[0]);
+    });
+
+    my $delete = Net::AMQP::Payload::Method.new('basic.consume',
+                                                0,
+                                                $.name,
+                                                $consumer-tag,
+                                                $no-local,
+                                                !$ack,
+                                                $exclusive,
+                                                0,
+                                                $%arguments);
+    $!channel-lock.protect: {
+        $!conn.write(Net::AMQP::Frame.new(type => 1, channel => $!channel, payload => $delete.Buf).Buf);
+    };
+
+    return $p;
 }
 
 method cancel {
 
 }
 
-method message-supply {
+class Net::AMQP::Message {
+    has $.consumer-tag;
+    has $.delivery-tag;
+    has $.redelivered;
+    has $.exchange-name;
+    has $.routing-key;
+                                                                                                                    
+    has %.headers;
+    has $.body;
+}
 
+method message-supply {
+    my $s = Supply.new;
+
+    my $delivery-lock = Lock.new;
+
+    $!methods.grep(*.method-name eq 'basic.deliver').tap(-> $method {
+        $delivery-lock.lock();
+
+        my $header-payload;
+        my $body = buf8.new();
+
+        my $htap = $!headers.tap({
+            $htap.close;
+            $header-payload = $_;
+            $delivery-lock.unlock();
+        });
+
+        my $btap = $!bodies.tap(-> $chunk {
+            $delivery-lock.protect: {
+                $body ~= $chunk;
+                if $header-payload.body-size == $body.bytes {
+                    # last chunk
+                    $btap.close;
+
+                    my $h = $header-payload.headers;
+                    my %headers = %$h;
+                    %headers<content-type> = $header-payload.content-type;
+                    %headers<content-encoding> = $header-payload.content-encoding;
+                    %headers<delivery-mode> = $header-payload.delivery-mode;
+                    %headers<priority> = $header-payload.priority;
+                    %headers<correlation-id> = $header-payload.correlation-id;
+                    %headers<reply-to> = $header-payload.reply-to;
+                    %headers<expiration> = $header-payload.expiration;
+                    %headers<message-id> = $header-payload.message-id;
+                    %headers<timestamp> = $header-payload.timestamp;
+                    %headers<type> = $header-payload.type;
+                    %headers<user-id> = $header-payload.user-id;
+                    %headers<app-id> = $header-payload.app-id;
+
+                    start {
+                    $s.more(Net::AMQP::Message.new(consumer-tag => $method.arguments[0],
+                                                   delivery-tag => $method.arguments[1],
+                                                   redelivered => $method.arguments[2],
+                                                   exchange-name => $method.arguments[3],
+                                                   routing-key => $method.arguments[4],
+                                                   :%headers,
+                                                   :$body));
+                    }
+                }
+            };
+        });
+
+    });
+
+    return $s;
 }
 
 method recover {
