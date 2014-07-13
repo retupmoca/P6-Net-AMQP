@@ -109,8 +109,29 @@ method exchange($name = "") {
                                    channel => $.id);
 }
 
-method declare-queue {
-    # TODO
+method declare-queue($name, :$passive, :$durable, :$exclusive, :$auto-delete, *%arguments) {
+    return Net::AMQP::Queue.new(:$name,
+                                :$passive,
+                                :$durable,
+                                :$exclusive,
+                                :$auto-delete,
+                                arguments => $%arguments,
+                                conn => $!conn,
+                                channel-lock => $!channel-lock,
+                                methods => $!methods,
+                                headers => $!headers,
+                                bodies => $!bodies,
+                                channel => $.id).declare;
+}
+
+method queue($name) {
+    return Net::AMQP::Queue.new(:$name,
+                                conn => $!conn,
+                                channel-lock => $!channel-lock,
+                                methods => $!methods,
+                                headers => $!headers,
+                                bodies => $!bodies,
+                                channel => $.id);
 }
 
 method qos($prefetch-size, $prefetch-count, $global = 0){

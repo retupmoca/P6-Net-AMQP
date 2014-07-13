@@ -116,3 +116,11 @@ method publish(:$routing-key = "", :$mandatory, :$immediate, :$content-type = ""
         }
     };
 }
+
+method return-supply {
+
+}
+
+method ack-supply {
+
+}
