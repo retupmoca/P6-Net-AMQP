@@ -101,12 +101,14 @@ method declare-exchange($name, $type, :$durable = 0, :$passive = 0) {
 }
 
 method exchange($name = "") {
-    return Net::AMQP::Exchange.new(:$name,
+    my $p = Promise.new;
+    $p.keep(Net::AMQP::Exchange.new(:$name,
                                    conn => $!conn,
                                    channel-lock => $!channel-lock,
                                    login => $!login,
                                    methods => $!methods,
-                                   channel => $.id);
+                                   channel => $.id));
+    return $p;
 }
 
 method declare-queue($name, :$passive, :$durable, :$exclusive, :$auto-delete, *%arguments) {
@@ -125,13 +127,15 @@ method declare-queue($name, :$passive, :$durable, :$exclusive, :$auto-delete, *%
 }
 
 method queue($name) {
-    return Net::AMQP::Queue.new(:$name,
+    my $p = Promise.new;
+    $p.keep(Net::AMQP::Queue.new(:$name,
                                 conn => $!conn,
                                 channel-lock => $!channel-lock,
                                 methods => $!methods,
                                 headers => $!headers,
                                 bodies => $!bodies,
-                                channel => $.id);
+                                channel => $.id));
+    return $p;
 }
 
 method qos($prefetch-size, $prefetch-count, $global = 0){

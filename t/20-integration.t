@@ -19,7 +19,7 @@ unless $initial-promise.status == Kept {
 my $channel-promise = $n.open-channel(1);
 my $channel = $channel-promise.result;
 
-my $exchange = $channel.exchange;
+my $exchange = $channel.exchange.result;
 
 my $queue = $channel.declare-queue("netamqptest").result;
 
