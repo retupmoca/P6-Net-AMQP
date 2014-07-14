@@ -9,6 +9,7 @@ use Net::AMQP::Frame;
 has $.id;
 has $!conn;
 has $!login;
+has $!frame-max;
 
 # supplies
 has $!methods;
@@ -20,7 +21,7 @@ has $!flow-stopped;
 has $!write-lock;
 has $!channel-lock;
 
-submethod BUILD(:$!id, :$!conn, :$!methods, :$!headers, :$!bodies, :$!login) {
+submethod BUILD(:$!id, :$!conn, :$!methods, :$!headers, :$!bodies, :$!login, :$!frame-max) {
     $!write-lock = Lock.new;
     $!channel-lock = Lock.new;
     my $wl = $!write-lock;
@@ -96,6 +97,7 @@ method declare-exchange($name, $type, :$durable = 0, :$passive = 0) {
                                    conn => $!conn,
                                    channel-lock => $!channel-lock,
                                    login => $!login,
+                                   frame-max => $!frame-max,
                                    methods => $!methods,
                                    channel => $.id).declare;
 }
@@ -106,6 +108,7 @@ method exchange($name = "") {
                                    conn => $!conn,
                                    channel-lock => $!channel-lock,
                                    login => $!login,
+                                   frame-max => $!frame-max,
                                    methods => $!methods,
                                    channel => $.id));
     return $p;

@@ -194,6 +194,7 @@ method open-channel(Int $id?) {
     return Net::AMQP::Channel.new(id => $id,
                                   conn => $!conn,
                                   login => $!login,
+                                  frame-max => $!frame-max,
                                   headers => $!header-supply.grep(*<channel> == $id).map(*<header>),
                                   bodies => $!body-supply.grep(*<channel> == $id).map(*<payload>),
                                   methods => $!method-supply.grep(*<channel> == $id).map(*<method>)).open;

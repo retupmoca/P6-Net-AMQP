@@ -10,11 +10,13 @@ has $.passive;
 
 has $!conn;
 has $!login;
+has $!frame-max;
 has $!methods;
 has $!channel;
 has $!channel-lock;
 
-submethod BUILD(:$!name, :$!type, :$!durable, :$!passive, :$!conn, :$!methods, :$!channel, :$!login, :$!channel-lock) { }
+submethod BUILD(:$!name, :$!type, :$!durable, :$!passive, :$!conn, :$!methods,
+                :$!channel, :$!login, :$!channel-lock, :$!frame-max) { }
 
 method declare {
     my $p = Promise.new;
@@ -100,7 +102,7 @@ method publish(:$routing-key = "", :$mandatory, :$immediate, :$content-type = ""
         $!conn.write(Net::AMQP::Frame.new(type => 2, channel => $!channel, payload => $header.Buf).Buf);
 
         # content
-        my $max-frame-size = 1234; # TODO
+        my $max-frame-size = $!frame-max;
         my $buf-size = $max-frame-size - 8; # header + trailer
         while $body.bytes {
             my $chunk;
