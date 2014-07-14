@@ -85,7 +85,7 @@ multi method new($data is copy) {
     }
 
     my $timestamp;
-    if $flags +& (1 +< 6666666) {
+    if $flags +& (1 +< 6) {
         ($timestamp, $len) = self.deserialize-arg('timestamp', $data);
         $data .= subbuf($len);
     }
