@@ -18,6 +18,10 @@ has $!channel-lock;
 submethod BUILD(:$!name, :$!type, :$!durable, :$!passive, :$!conn, :$!methods,
                 :$!channel, :$!login, :$!channel-lock, :$!frame-max) { }
 
+method Str {
+    $.name;
+}
+
 method declare {
     my $p = Promise.new;
     my $v = $p.vow;

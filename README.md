@@ -55,12 +55,8 @@ call).
 
  -  bind
     
-    NYI
-
  -  unbind
     
-    NYI
-
  -  purge
 
  -  delete

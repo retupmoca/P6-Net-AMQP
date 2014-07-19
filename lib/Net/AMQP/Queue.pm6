@@ -21,6 +21,10 @@ has $!channel-lock;
 submethod BUILD(:$!name, :$!passive, :$!durable, :$!exclusive, :$!auto-delete, :$!conn, :$!methods,
                 :$!headers, :$!bodies, :$!channel, :$!channel-lock, :$!arguments) { }
                 
+method Str {
+    $.name;
+}
+
 method declare {
     my $p = Promise.new;
     my $v = $p.vow;
@@ -47,12 +51,51 @@ method declare {
     return $p;
 }
 
-method bind($exchange, $routing-key) {
+method bind($exchange, $routing-key = '', *%arguments) {
+    my $p = Promise.new;
+    my $v = $p.vow;
 
+    my $tap = $!methods.grep(*.method-name eq 'queue.bind-ok').tap({
+        $tap.close;
+
+        $v.keep(1);
+    });
+
+    my $bind = Net::AMQP::Payload::Method.new('queue.bind',
+                                               0,
+                                               $.name,
+                                               ~$exchange,
+                                               $routing-key,
+                                               0,
+                                               $%arguments);
+    $!channel-lock.protect: {
+        $!conn.write(Net::AMQP::Frame.new(type => 1, channel => $!channel, payload => $bind.Buf).Buf);
+    };
+
+    return $p;
 }
 
-method unbind($exchange, $routing-key) {
+method unbind($exchange, $routing-key = '', *%arguments) {
+    my $p = Promise.new;
+    my $v = $p.vow;
 
+    my $tap = $!methods.grep(*.method-name eq 'queue.unbind-ok').tap({
+        $tap.close;
+
+        $v.keep(1);
+    });
+
+    my $bind = Net::AMQP::Payload::Method.new('queue.unbind',
+                                               0,
+                                               $.name,
+                                               ~$exchange,
+                                               $routing-key,
+                                               $%arguments);
+    $!channel-lock.protect: {
+        $!conn.write(Net::AMQP::Frame.new(type => 1, channel => $!channel, payload => $bind.Buf).Buf);
+    };
+
+    return $p;
 }
 
 method purge {
