@@ -159,10 +159,10 @@ method connect(){
             }
         },
         quit => {
-            $!vow.break(1);
+            $!vow.break("quit");
         },
         done => {
-            $!vow.break(1);
+            $!vow.break("done");
         });
         $!conn.write(buf8.new(65, 77, 81, 80, 0, 0, 9, 1));
     });
