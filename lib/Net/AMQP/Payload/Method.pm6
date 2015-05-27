@@ -1,6 +1,6 @@
 use Net::AMQP::Payload::ArgumentSerialization;
 
-class Net::AMQP::Payload::Method does Net::AMQP::Payload::ArgumentSerialization;
+unit class Net::AMQP::Payload::Method does Net::AMQP::Payload::ArgumentSerialization;
 
 my %standard = (
     connection =>

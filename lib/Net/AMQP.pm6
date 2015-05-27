@@ -1,4 +1,4 @@
-class Net::AMQP;
+unit class Net::AMQP;
 
 use Net::AMQP::Frame;
 use Net::AMQP::Channel;
