@@ -89,7 +89,7 @@ method Buf {
     my $args = buf8.new();
     my $bitsused = 0;
     my $lastarg = '';
-    for @.signature Z @.arguments -> $arg, $value {
+    for (@.signature Z @.arguments).flat -> $arg, $value {
         if $arg ne 'bit' {
             $bitsused = 0;
         }
