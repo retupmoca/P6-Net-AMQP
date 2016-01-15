@@ -21,7 +21,8 @@ has $!vow;
 
 has $!conn;
 
-has $!frame-supply;
+has Supplier $!frame-supplier;
+has Supply   $!frame-supply;
 
 has $!method-supply;
 has $!header-supply;
@@ -32,7 +33,8 @@ method connect(){
     $!vow = $p.vow;
     $!promise = $p;
 
-    $!frame-supply = Supply.new;
+    $!frame-supplier    = Supplier.new;
+    $!frame-supply      = $!frame-supplier.Supply;
 
     $!method-supply = $!frame-supply.grep({ $_.type == 1 })\
                                     .map({ (channel => $_.channel,
@@ -152,7 +154,7 @@ method connect(){
 
                     my $frame = Net::AMQP::Frame.new($framebuf);
 
-                    $!frame-supply.emit($frame);
+                    $!frame-supplier.emit($frame);
                 } else {
                     $continue = False;
                 }
