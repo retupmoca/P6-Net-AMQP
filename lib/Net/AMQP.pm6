@@ -21,6 +21,8 @@ has $!vow;
 
 has $!conn;
 
+has Bool $.debug = False;
+
 has Supplier $!frame-supplier;
 has Supply   $!frame-supply;
 
@@ -36,11 +38,10 @@ method connect(){
     $!frame-supplier    = Supplier.new;
     $!frame-supply      = $!frame-supplier.Supply;
 
-    #$!frame-supply.tap( -> $v { say $v });
 
 
     $!method-supply = $!frame-supply.grep({ $_.type == 1 }).map({ (channel => $_.channel, method  => Net::AMQP::Payload::Method.new($_.payload)).hash });
-    $!method-supply.tap({ say "got method ",$_<method>.method-name });
+    $!method-supply.tap({ say "got method ",$_<method>.method-name }) if $!debug;
 
     $!header-supply = $!frame-supply.grep({ $_.type == 2 }).map({ (channel => $_.channel, header  => Net::AMQP::Payload::Header.new($_.payload)).hash });
     $!body-supply = $!frame-supply.grep({ $_.type == 3 }).map({ (channel => $_.channel, payload  => $_.payload).hash });
@@ -51,7 +52,7 @@ method connect(){
     # once these are hit, we will never need them again
     ###
 
-    my $connstart = $!method-supply.grep({ say "connstart : ",$_; $_<method>.method-name eq 'connection.start'}).tap({
+    my $connstart = $!method-supply.grep({ $_<method>.method-name eq 'connection.start'}).tap({
         $connstart.close;
 
         my $start-ok = Net::AMQP::Payload::Method.new("connection.start-ok",
@@ -61,7 +62,7 @@ method connect(){
                                                       "en_US");
         $!conn.write(Net::AMQP::Frame.new(type => 1, channel => 0, payload => $start-ok.Buf).Buf);
     });
-    my $conntune = $!method-supply.grep( { say "contune: $_"; $_<method>.method-name eq 'connection.tune' }).tap({
+    my $conntune = $!method-supply.grep( { $_<method>.method-name eq 'connection.tune' }).tap({
         $conntune.close;
 
         $!channel-max = $_<method>.arguments[0];

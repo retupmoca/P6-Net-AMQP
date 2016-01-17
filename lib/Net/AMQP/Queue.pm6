@@ -187,8 +187,8 @@ class Net::AMQP::Message {
     has $.body;
 }
 
-method message-supply {
-    my $s = Supply.new;
+method message-supply() returns Supply {
+    my $s = Supplier.new;
 
     my $delivery-lock = Lock.new;
 
@@ -241,7 +241,7 @@ method message-supply {
 
     });
 
-    return $s;
+    return $s.Supply;
 }
 
 method recover {
