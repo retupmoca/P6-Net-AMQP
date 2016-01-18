@@ -24,7 +24,7 @@ react {
 
             say "consuming";
 
-            my $body-supply = $q.message-supply.map( -> $v { $v.body.decode });
+            my $body-supply = $q.message-supply.map( -> $v { $v.body.decode }).share;
 
             whenever $body-supply.grep(/^exit$/) {
                 $n.close("", "");
