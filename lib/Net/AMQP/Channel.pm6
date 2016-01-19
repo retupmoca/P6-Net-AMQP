@@ -196,3 +196,26 @@ method recover($requeue) {
     }
     return $p;
 }
+
+method ack(Int() $delivery-tag, Bool :$multiple) returns Promise {
+    self!basic-method('basic.ack', 'basic.ack-ok', $delivery-tag, $multiple);
+}
+
+# Helper to make implementing/refactoring basic methods on channel easier
+# it is the responsibility of the caller to ensure the right args are passed.
+method !basic-method(Str:D $method, Str:D $ok-method, *@args ) returns Promise {
+    my $p = Promise.new;
+    my $v = $p.vow;
+
+    my $tap = $!methods.grep(*.method-name eq $ok-method).tap({
+        $tap.close;
+
+        $v.keep(1);
+    });
+
+    my $method-payload = Net::AMQP::Payload::Method.new($method, @args);
+    $!channel-lock.protect: {
+        $!conn.write(Net::AMQP::Frame.new(type => 1, channel => $.id, payload => $method-payload.Buf).Buf);
+    }
+    return $p;
+}
