@@ -21,6 +21,14 @@ has $!flow-stopped;
 has $!write-lock;
 has $!channel-lock;
 
+# This should be part of the public interface
+# as dependent promises may want to react to it
+# This will be Kept when the channel.close-ok method
+# is received
+
+has Promise $.closed;
+has         $!closed-vow;
+
 submethod BUILD(:$!id, :$!conn, :$!methods, :$!headers, :$!bodies, :$!login, :$!frame-max) {
     $!write-lock = Lock.new;
     $!channel-lock = Lock.new;
@@ -32,6 +40,9 @@ submethod BUILD(:$!id, :$!conn, :$!methods, :$!headers, :$!bodies, :$!login, :$!
 method open {
     my $p = Promise.new;
     my $v = $p.vow;
+
+    $!closed     = Promise.new;
+    $!closed-vow = $!closed.vow;
 
     my $tap = $!methods.grep(*.method-name eq 'channel.open-ok').tap({
         $tap.close;
@@ -58,8 +69,9 @@ method open {
 
     });
 
-    $!methods.grep(*.method-name eq 'channel.close').tap({
-        1; # TODO
+    my $closed-tap = $!methods.grep(*.method-name eq 'channel.close').tap({
+        $closed-tap.close;
+        $!closed-vow.keep(True);
     });
 
     my $open = Net::AMQP::Payload::Method.new("channel.open", "");
@@ -72,20 +84,25 @@ method close($reply-code, $reply-text, $class-id = 0, $method-id = 0) {
     my $p = Promise.new;
     my $v = $p.vow;
 
-    my $tap = $!methods.grep(*.method-name eq 'channel.close-ok').tap({
-        $tap.close;
-
+    if $!closed.status ~~ Kept {
         $v.keep(1);
-    });
+    }
+    else {
+        my $tap = $!methods.grep(*.method-name eq 'channel.close-ok').tap({
+            $tap.close;
+            $!closed-vow.keep(True);
+            $v.keep(1);
+        });
 
-    my $close = Net::AMQP::Payload::Method.new("channel.close",
-                                               $reply-code,
-                                               $reply-text,
-                                               $class-id,
-                                               $method-id);
-    $!channel-lock.protect: {
-        $!conn.write(Net::AMQP::Frame.new(type => 1, channel => $.id, payload => $close.Buf).Buf);
-    };
+        my $close = Net::AMQP::Payload::Method.new("channel.close",
+                                                $reply-code,
+                                                $reply-text,
+                                                $class-id,
+                                                $method-id);
+        $!channel-lock.protect: {
+            $!conn.write(Net::AMQP::Frame.new(type => 1, channel => $.id, payload => $close.Buf).Buf);
+        };
+    }
     return $p;
 }
 
