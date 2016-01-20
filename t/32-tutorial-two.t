@@ -51,7 +51,7 @@ my $p = start {
 
 # wait for the receiver to start u
 my ( $receiver, $receiver-promise) =  await $start-promise;
-my $n = Net::AMQP.new(:debug);
+my $n = Net::AMQP.new;
 my $con =  await $n.connect;
 my $channel = $n.open-channel(1).result;
 $channel.exchange.result.publish(routing-key => "task_queue", body => "Hello, World".encode, :persistent);
