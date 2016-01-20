@@ -180,7 +180,7 @@ method cancel {
 
 }
 
-class Net::AMQP::Message {
+class Message {
     has $.consumer-tag;
     has $.delivery-tag;
     has $.redelivered;
@@ -231,13 +231,13 @@ method message-supply() returns Supply {
                     %headers<app-id> = $header-payload.app-id;
 
                     start {
-                    $s.emit(Net::AMQP::Message.new(consumer-tag => $method.arguments[0],
-                                                   delivery-tag => $method.arguments[1],
-                                                   redelivered => $method.arguments[2],
-                                                   exchange-name => $method.arguments[3],
-                                                   routing-key => $method.arguments[4],
-                                                   :%headers,
-                                                   :$body));
+                    $s.emit(Message.new(consumer-tag => $method.arguments[0],
+                                        delivery-tag => $method.arguments[1],
+                                        redelivered => $method.arguments[2],
+                                        exchange-name => $method.arguments[3],
+                                        routing-key => $method.arguments[4],
+                                        :%headers,
+                                        :$body));
                     }
                 }
             };
