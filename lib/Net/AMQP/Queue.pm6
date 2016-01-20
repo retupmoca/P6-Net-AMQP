@@ -29,8 +29,12 @@ method declare {
     my $p = Promise.new;
     my $v = $p.vow;
 
-    my $tap = $!methods.grep(*.method-name eq 'queue.declare-ok').tap({
+    my $tap = $!methods.grep(*.method-name eq 'queue.declare-ok').tap( -> $ok {
         $tap.close;
+
+        if not $!name {
+            $!name = $ok.arguments[0];
+        }
 
         $v.keep(self);
     });
