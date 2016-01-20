@@ -141,10 +141,6 @@ method connect(){
     IO::Socket::Async.connect($.host, $.port).then( -> $conn {
         $!conn = $conn.result;
 
-        CATCH {
-            say $_;
-        }
-
         my $buf = buf8.new();
 
         $!conn.Supply(:bin).act(-> $bytes {
