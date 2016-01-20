@@ -36,6 +36,8 @@ $exchange.publish(routing-key => 'netamqptest', body => 'test'.encode);
 
 await $p;
 
+await $queue.delete;
+
 my $chan-close-promise = $channel.close("", "");
 await $chan-close-promise;
 
