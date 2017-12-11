@@ -70,7 +70,7 @@ method delete($if-unused = 0) {
     return $p;
 }
 
-method publish(:$routing-key = "", :$mandatory, :$immediate, :$content-type, :$content-encoding ,
+method publish(:$routing-key = "", Bool :$mandatory, Bool :$immediate, :$content-type, :$content-encoding ,
                :$persistent, :$priority, :$correlation-id, :$reply-to ,
                :$expiration, :$message-id, :$timestamp, :$type,
                :$app-id, :$body is copy, *%headers) {
@@ -124,8 +124,8 @@ method publish(:$routing-key = "", :$mandatory, :$immediate, :$content-type, :$c
     };
 }
 
-method return-supply {
-
+method return-supply(--> Supply) {
+    $!methods.grep(*.method-name eq 'basic.return');
 }
 
 method ack-supply {
