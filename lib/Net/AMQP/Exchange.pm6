@@ -43,7 +43,7 @@ method declare {
                                                  0,
                                                  Nil);
     $!channel-lock.protect: {
-        $!conn.write(Net::AMQP::Frame.new(type => 1, channel => $!channel, payload => $declare.Buf).Buf);
+        $!conn.write(Net::AMQP::Frame.new(type => 1, channel => $!channel, payload => $declare).Buf);
     };
 
     return $p;
@@ -65,7 +65,7 @@ method delete($if-unused = 0) {
                                                 $if-unused,
                                                 0);
     $!channel-lock.protect: {
-        $!conn.write(Net::AMQP::Frame.new(type => 1, channel => $!channel, payload => $delete.Buf).Buf);
+        $!conn.write(Net::AMQP::Frame.new(type => 1, channel => $!channel, payload => $delete).Buf);
     };
     return $p;
 }
@@ -84,7 +84,7 @@ method publish(:$routing-key = "", Bool :$mandatory, Bool :$immediate, :$content
                                                      $routing-key,
                                                      $mandatory,
                                                      $immediate);
-        $!conn.write(Net::AMQP::Frame.new(type => 1, channel => $!channel, payload => $publish.Buf).Buf);
+        $!conn.write(Net::AMQP::Frame.new(type => 1, channel => $!channel, payload => $publish).Buf);
 
         # header
         my $delivery-mode = 1;
@@ -104,7 +104,7 @@ method publish(:$routing-key = "", Bool :$mandatory, Bool :$immediate, :$content
                                                     :$type,
                                                     user-id => $!login,
                                                     :$app-id);
-        $!conn.write(Net::AMQP::Frame.new(type => 2, channel => $!channel, payload => $header.Buf).Buf);
+        $!conn.write(Net::AMQP::Frame.new(type => 2, channel => $!channel, payload => $header).Buf);
 
         # content
         my $max-frame-size = $!frame-max;
