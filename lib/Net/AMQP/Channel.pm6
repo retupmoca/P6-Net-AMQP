@@ -224,6 +224,10 @@ method ack(Int() $delivery-tag, Bool :$multiple) returns Promise {
     self!basic-method('basic.ack', 'basic.ack-ok', $delivery-tag, $multiple);
 }
 
+method reject(Int() $delivery-tag, Bool :$requeue --> Promise ) {
+    self!basic-method('basic.reject', 'basic.reject-ok', $delivery-tag, $requeue);
+}
+
 # Helper to make implementing/refactoring basic methods on channel easier
 # it is the responsibility of the caller to ensure the right args are passed.
 method !basic-method(Str:D $method, Str:D $ok-method, *@args ) returns Promise {
