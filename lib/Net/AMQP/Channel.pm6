@@ -39,17 +39,11 @@ submethod BUILD(:$!id, :$!conn, :$!methods, :$!headers, :$!bodies, :$!login, :$!
 }
 
 method open( --> Promise ) {
-    my $p = Promise.new;
-    my $v = $p.vow;
 
     $!closed     = Promise.new;
     $!closed-vow = $!closed.vow;
 
-    my $tap = $!methods.grep(*.method-name eq 'channel.open-ok').tap({
-        $tap.close;
-
-        $v.keep(self);
-    });
+    my $p = self.ok-method-promise('channel.open-ok', self);
 
     $!methods.grep(*.method-name eq 'channel.flow').tap({
         my $flow-ok = Net::AMQP::Payload::Method.new("channel.flow-ok",
@@ -86,13 +80,12 @@ method close($reply-code, $reply-text, $class-id = 0, $method-id = 0 --> Promise
     my $v = $p.vow;
 
     if $!closed.status ~~ Kept {
-        $v.keep(1);
+        $v.keep(True);
     }
     else {
-        my $tap = $!methods.grep(*.method-name eq 'channel.close-ok').tap({
-            $tap.close;
+        self.ok-method-promise('channel.close-ok').then({
             $!closed-vow.keep(True);
-            $v.keep(1);
+            $v.keep(True);
         });
 
         my $close = Net::AMQP::Payload::Method.new("channel.close",
@@ -163,54 +156,15 @@ multi method qos( Int $, Int $prefetch-count, Bool :$global = False --> Promise 
 }
 
 multi method qos( Int $prefetch-count, Bool :$global = False --> Promise ){
-    my $p = Promise.new;
-    my $v = $p.vow;
-
-    my $tap = $!methods.grep(*.method-name eq 'basic.qos-ok').tap({
-        $tap.close;
-
-        $v.keep(1);
-    });
-
-    my $qos = Net::AMQP::Payload::Method.new("basic.qos",
-                                             0,
-                                             $prefetch-count,
-                                             $global);
-    $.write-frame($qos);
-    $p;
+    self!basic-method("basic.qos",'basic.qos-ok',0, $prefetch-count,$global);
 }
 
 method flow($status --> Promise) {
-    my $p = Promise.new;
-    my $v = $p.vow;
-
-    my $tap = $!methods.grep(*.method-name eq 'channel.flow-ok').tap({
-        $tap.close;
-
-        $v.keep(1);
-    });
-
-    my $flow = Net::AMQP::Payload::Method.new("channel.flow",
-                                             $status);
-    $.write-frame($flow);
-    $p;
+    self!basic-method("channel.flow",'channel.flow-ok',$status);
 }
 
 method recover($requeue --> Promise) {
-    my $p = Promise.new;
-    my $v = $p.vow;
-
-    my $tap = $!methods.grep(*.method-name eq 'basic.recover-ok').tap({
-        $tap.close;
-
-        $v.keep(1);
-    });
-
-    my $recover = Net::AMQP::Payload::Method.new("basic.recover",
-                                              $requeue);
-
-    $.write-frame($recover);
-    $p;
+    self!basic-method("basic.recover", 'basic.recover-ok', $requeue);
 }
 
 method ack(Int() $delivery-tag, Bool :$multiple --> Promise ) {
@@ -224,19 +178,27 @@ method reject(Int() $delivery-tag, Bool :$requeue --> Promise ) {
 # Helper to make implementing/refactoring basic methods on channel easier
 # it is the responsibility of the caller to ensure the right args are passed.
 method !basic-method(Str:D $method, Str:D $ok-method, *@args --> Promise ) {
+    my $p = self.ok-method-promise($ok-method);
+
+    my $method-payload = Net::AMQP::Payload::Method.new($method, @args);
+
+    $.write-frame($method-payload);
+    $p;
+}
+
+# For ok methods where only want to keep a Promise.
+
+method ok-method-promise(Str:D $ok-method, $keep? --> Promise ) {
     my $p = Promise.new;
     my $v = $p.vow;
 
     my $tap = $!methods.grep(*.method-name eq $ok-method).tap({
         $tap.close;
 
-        $v.keep(1);
+        $v.keep($keep // True);
     });
-
-    my $method-payload = Net::AMQP::Payload::Method.new($method, @args);
-
-    $.write-frame($method-payload);
     $p;
+
 }
 
 # This should be public so that we a) don't need to repear the frame creation pattern and
