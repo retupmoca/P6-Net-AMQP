@@ -18,11 +18,11 @@ has $!channel-lock;
 submethod BUILD(:$!name, :$!type, :$!durable, :$!passive, :$!conn, :$!methods,
                 :$!channel, :$!login, :$!channel-lock, :$!frame-max) { }
 
-method Str {
+method Str( --> Str ) {
     $.name;
 }
 
-method declare {
+method declare( --> Promise )  {
     my $p = Promise.new;
     my $v = $p.vow;
 
@@ -49,7 +49,7 @@ method declare {
     return $p;
 }
 
-method delete($if-unused = 0) {
+method delete($if-unused = 0 --> Promise) {
     my $p = Promise.new;
     my $v = $p.vow;
 

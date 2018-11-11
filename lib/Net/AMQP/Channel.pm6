@@ -37,7 +37,7 @@ submethod BUILD(:$!id, :$!conn, :$!methods, :$!headers, :$!bodies, :$!login, :$!
     $!conn = class { method write($stuff) { $wl.protect: { $c.write($stuff); }; }; method real { $c }; };
 }
 
-method open {
+method open( --> Promise ) {
     my $p = Promise.new;
     my $v = $p.vow;
 
@@ -80,7 +80,7 @@ method open {
     return $p;
 }
 
-method close($reply-code, $reply-text, $class-id = 0, $method-id = 0) {
+method close($reply-code, $reply-text, $class-id = 0, $method-id = 0 --> Promise ) {
     my $p = Promise.new;
     my $v = $p.vow;
 
@@ -106,7 +106,7 @@ method close($reply-code, $reply-text, $class-id = 0, $method-id = 0) {
     return $p;
 }
 
-method declare-exchange($name, $type, :$durable = 0, :$passive = 0) {
+method declare-exchange($name, $type, :$durable = 0, :$passive = 0 --> Promise) {
     return Net::AMQP::Exchange.new(:$name,
                                    :$type,
                                    :$durable,
@@ -119,7 +119,7 @@ method declare-exchange($name, $type, :$durable = 0, :$passive = 0) {
                                    channel => $.id).declare;
 }
 
-method exchange($name = "") {
+method exchange($name = "" --> Promise ) {
     my $p = Promise.new;
     $p.keep(Net::AMQP::Exchange.new(:$name,
                                    conn => $!conn,
@@ -133,11 +133,11 @@ method exchange($name = "") {
 
 proto method declare-queue(|c) { * }
 
-multi method declare-queue(*%args) {
+multi method declare-queue(*%args --> Promise ) {
     self.declare-queue('', |%args);
 }
 
-multi method declare-queue($name, :$passive, :$durable, :$exclusive, :$auto-delete, *%arguments) {
+multi method declare-queue($name, :$passive, :$durable, :$exclusive, :$auto-delete, *%arguments --> Promise ) {
     return Net::AMQP::Queue.new(:$name,
                                 :$passive,
                                 :$durable,
@@ -191,7 +191,7 @@ multi method qos( Int $prefetch-count, Bool :$global = False --> Promise ){
     return $p;
 }
 
-method flow($status) {
+method flow($status --> Promise) {
     my $p = Promise.new;
     my $v = $p.vow;
 
@@ -209,7 +209,7 @@ method flow($status) {
     return $p;
 }
 
-method recover($requeue) {
+method recover($requeue --> Promise) {
     my $p = Promise.new;
     my $v = $p.vow;
 
@@ -227,7 +227,7 @@ method recover($requeue) {
     return $p;
 }
 
-method ack(Int() $delivery-tag, Bool :$multiple) returns Promise {
+method ack(Int() $delivery-tag, Bool :$multiple --> Promise ) {
     self!basic-method('basic.ack', 'basic.ack-ok', $delivery-tag, $multiple);
 }
 
@@ -237,7 +237,7 @@ method reject(Int() $delivery-tag, Bool :$requeue --> Promise ) {
 
 # Helper to make implementing/refactoring basic methods on channel easier
 # it is the responsibility of the caller to ensure the right args are passed.
-method !basic-method(Str:D $method, Str:D $ok-method, *@args ) returns Promise {
+method !basic-method(Str:D $method, Str:D $ok-method, *@args --> Promise ) {
     my $p = Promise.new;
     my $v = $p.vow;
 

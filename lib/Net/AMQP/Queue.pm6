@@ -23,11 +23,11 @@ has Str $.consumer-tag;
 submethod BUILD(:$!name, :$!passive, :$!durable, :$!exclusive, :$!auto-delete, :$!conn, :$!methods,
                 :$!headers, :$!bodies, :$!channel, :$!channel-lock, :$!arguments) { }
 
-method Str {
+method Str( --> Str ) {
     $.name;
 }
 
-method declare {
+method declare( --> Promise ) {
     my $p = Promise.new;
     my $v = $p.vow;
 
@@ -57,7 +57,7 @@ method declare {
     return $p;
 }
 
-method bind($exchange, $routing-key = '', *%arguments) {
+method bind($exchange, $routing-key = '', *%arguments --> Promise) {
     my $p = Promise.new;
     my $v = $p.vow;
 
@@ -81,7 +81,7 @@ method bind($exchange, $routing-key = '', *%arguments) {
     return $p;
 }
 
-method unbind($exchange, $routing-key = '', *%arguments) {
+method unbind($exchange, $routing-key = '', *%arguments --> Promise) {
     my $p = Promise.new;
     my $v = $p.vow;
 
@@ -104,7 +104,7 @@ method unbind($exchange, $routing-key = '', *%arguments) {
     return $p;
 }
 
-method purge {
+method purge( --> Promise ) {
     my $p = Promise.new;
     my $v = $p.vow;
 
@@ -125,7 +125,7 @@ method purge {
     return $p;
 }
 
-method delete(:$if-unused, :$if-empty) {
+method delete(:$if-unused, :$if-empty --> Promise ) {
     my $p = Promise.new;
     my $v = $p.vow;
 
@@ -152,7 +152,7 @@ method get {
 
 }
 
-method consume(:$consumer-tag = "", :$exclusive, :$no-local, :$ack, *%arguments) {
+method consume(:$consumer-tag = "", :$exclusive, :$no-local, :$ack, *%arguments --> Promise ) {
     my $p = Promise.new;
     my $v = $p.vow;
 
@@ -199,7 +199,7 @@ class Message {
     has $.body;
 }
 
-method !accept-message(Net::AMQP::Payload::Method $method where { $_.method-name eq 'basic.deliver' }) returns Bool {
+method !accept-message(Net::AMQP::Payload::Method $method where { $_.method-name eq 'basic.deliver' } --> Bool) {
     my @checks;
     if $!consumer-tag {
         if $method.arguments[0] ne $!consumer-tag {
@@ -209,7 +209,7 @@ method !accept-message(Net::AMQP::Payload::Method $method where { $_.method-name
     return so all(@checks);
 }
 
-method message-supply() returns Supply {
+method message-supply( --> Supply ) {
     my $s = Supplier.new;
 
     my $delivery-lock = Lock.new;

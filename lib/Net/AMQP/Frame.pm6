@@ -11,7 +11,7 @@ has $.type;
 has $.channel;
 has $.payload;
 
-method size(Blob $header?){
+method size(Blob $header? --> Int){
     if self {
         return $!payload.bytes;
     } else {
@@ -20,7 +20,7 @@ method size(Blob $header?){
     }
 }
 
-method type-class {
+method type-class( --> Mu:U ) {
     if $!type == 1 {
         return Net::AMQP::Payload::Method;
     } elsif $!type == 2 {
@@ -32,7 +32,7 @@ method type-class {
     }
 }
 
-method Buf {
+method Buf( --> Buf ) {
     return pack('CnN', ($!type, $!channel, self.size)) ~ $!payload ~ Buf.new(0xCE);
 }
 
