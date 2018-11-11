@@ -78,7 +78,7 @@ method open( --> Promise ) {
     my $open = Net::AMQP::Payload::Method.new("channel.open", "");
     $!conn.write(Net::AMQP::Frame.new(type => 1, channel => $.id, payload => $open).Buf);
 
-    return $p;
+    $p;
 }
 
 method close($reply-code, $reply-text, $class-id = 0, $method-id = 0 --> Promise ) {
@@ -102,32 +102,28 @@ method close($reply-code, $reply-text, $class-id = 0, $method-id = 0 --> Promise
                                                 $method-id);
         $.write-frame($close);
     }
-    return $p;
+    $p;
 }
 
 method declare-exchange($name, $type, :$durable = 0, :$passive = 0 --> Promise) {
-    return Net::AMQP::Exchange.new(:$name,
-                                   :$type,
-                                   :$durable,
-                                   :$passive,
-                                   conn => $!conn,
-                                   channel-lock => $!channel-lock,
-                                   login => $!login,
-                                   frame-max => $!frame-max,
-                                   methods => $!methods,
-                                   channel => $.id).declare;
+    Net::AMQP::Exchange.new(:$name,
+                            :$type,
+                            :$durable,
+                            :$passive,
+                            login => $!login,
+                            frame-max => $!frame-max,
+                            methods => $!methods,
+                            channel => self).declare;
 }
 
 method exchange($name = "" --> Promise ) {
     my $p = Promise.new;
     $p.keep(Net::AMQP::Exchange.new(:$name,
-                                   conn => $!conn,
-                                   channel-lock => $!channel-lock,
                                    login => $!login,
                                    frame-max => $!frame-max,
                                    methods => $!methods,
-                                   channel => $.id));
-    return $p;
+                                   channel => self));
+    $p;
 }
 
 proto method declare-queue(|c) { * }
@@ -246,10 +242,21 @@ method !basic-method(Str:D $method, Str:D $ok-method, *@args --> Promise ) {
 # This should be public so that we a) don't need to repear the frame creation pattern and
 # b) only need to pass the channel to exchange and queue
 
-method write-frame(Net::AMQP::Payload $payload) {
-    $!channel-lock.protect: {
-        $!conn.write: Net::AMQP::Frame.new(channel => $.id, payload => $payload).Buf;
+method write-frame(Net::AMQP::Payload $payload, Bool :$no-lock) {
+
+    my $frame-buf = Net::AMQP::Frame.new(channel => $.id, payload => $payload).Buf;
+    if $no-lock {
+        $!conn.write: $frame-buf;
     }
+    else {
+        self.protect: {
+            $!conn.write: $frame-buf;
+        }
+    }
+}
+
+method protect( Callable $block ) {
+    $!channel-lock.protect: $block;
 }
 
 # vim: ft=perl6
