@@ -3,6 +3,7 @@ unit class Net::AMQP::Channel;
 use Net::AMQP::Exchange;
 use Net::AMQP::Queue;
 
+need Net::AMQP::Payload;
 use Net::AMQP::Payload::Method;
 use Net::AMQP::Frame;
 
@@ -99,9 +100,7 @@ method close($reply-code, $reply-text, $class-id = 0, $method-id = 0 --> Promise
                                                 $reply-text,
                                                 $class-id,
                                                 $method-id);
-        $!channel-lock.protect: {
-            $!conn.write(Net::AMQP::Frame.new(type => 1, channel => $.id, payload => $close).Buf);
-        };
+        $.write-frame($close);
     }
     return $p;
 }
@@ -185,10 +184,8 @@ multi method qos( Int $prefetch-count, Bool :$global = False --> Promise ){
                                              0,
                                              $prefetch-count,
                                              $global);
-    $!channel-lock.protect: {
-        $!conn.write(Net::AMQP::Frame.new(type => 1, channel => $.id, payload => $qos).Buf);
-    };
-    return $p;
+    $.write-frame($qos);
+    $p;
 }
 
 method flow($status --> Promise) {
@@ -203,10 +200,8 @@ method flow($status --> Promise) {
 
     my $flow = Net::AMQP::Payload::Method.new("channel.flow",
                                              $status);
-    $!channel-lock.protect: {
-        $!conn.write(Net::AMQP::Frame.new(type => 1, channel => $.id, payload => $flow).Buf);
-    }
-    return $p;
+    $.write-frame($flow);
+    $p;
 }
 
 method recover($requeue --> Promise) {
@@ -221,10 +216,9 @@ method recover($requeue --> Promise) {
 
     my $recover = Net::AMQP::Payload::Method.new("basic.recover",
                                               $requeue);
-    $!channel-lock.protect: {
-        $!conn.write(Net::AMQP::Frame.new(type => 1, channel => $.id, payload => $recover).Buf);
-    }
-    return $p;
+
+    $.write-frame($recover);
+    $p;
 }
 
 method ack(Int() $delivery-tag, Bool :$multiple --> Promise ) {
@@ -248,8 +242,18 @@ method !basic-method(Str:D $method, Str:D $ok-method, *@args --> Promise ) {
     });
 
     my $method-payload = Net::AMQP::Payload::Method.new($method, @args);
-    $!channel-lock.protect: {
-        $!conn.write(Net::AMQP::Frame.new(type => 1, channel => $.id, payload => $method-payload).Buf);
-    }
-    return $p;
+
+    $.write-frame($method-payload);
+    $p;
 }
+
+# This should be public so that we a) don't need to repear the frame creation pattern and
+# b) only need to pass the channel to exchange and queue
+
+method write-frame(Net::AMQP::Payload $payload) {
+    $!channel-lock.protect: {
+        $!conn.write: Net::AMQP::Frame.new(channel => $.id, payload => $payload).Buf;
+    }
+}
+
+# vim: ft=perl6
