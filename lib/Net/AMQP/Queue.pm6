@@ -10,20 +10,18 @@ has $.exclusive;
 has $.auto-delete;
 has $.arguments;
 
-has $!conn;
 has $!login;
 has $!methods;
 has $!headers;
 has $!bodies;
 has $!channel;
-has $!channel-lock;
 
 has Str $.consumer-tag;
 
 has Supplier $!message-supplier;
 
-submethod BUILD(:$!name, :$!passive, :$!durable, :$!exclusive, :$!auto-delete, :$!conn, :$!methods,
-                :$!headers, :$!bodies, :$!channel, :$!channel-lock, :$!arguments) { }
+submethod BUILD(:$!name, :$!passive, :$!durable, :$!exclusive, :$!auto-delete, :$!methods,
+                :$!headers, :$!bodies, :$!channel, :$!arguments) { }
 
 method Str( --> Str ) {
     $.name;
@@ -52,11 +50,10 @@ method declare( --> Promise ) {
                                                  $.auto-delete,
                                                  0,
                                                  $.arguments);
-    $!channel-lock.protect: {
-        $!conn.write(Net::AMQP::Frame.new(type => 1, channel => $!channel, payload => $declare).Buf);
-    };
 
-    return $p;
+    $!channel.write-frame($declare);
+
+    $p;
 }
 
 method bind($exchange, $routing-key = '', *%arguments --> Promise) {
@@ -76,11 +73,9 @@ method bind($exchange, $routing-key = '', *%arguments --> Promise) {
                                                $routing-key,
                                                0,
                                                $%arguments);
-    $!channel-lock.protect: {
-        $!conn.write(Net::AMQP::Frame.new(type => 1, channel => $!channel, payload => $bind).Buf);
-    };
+    $!channel.write-frame($bind);
 
-    return $p;
+    $p;
 }
 
 method unbind($exchange, $routing-key = '', *%arguments --> Promise) {
@@ -93,17 +88,14 @@ method unbind($exchange, $routing-key = '', *%arguments --> Promise) {
         $v.keep(1);
     });
 
-    my $bind = Net::AMQP::Payload::Method.new('queue.unbind',
+    my $unbind = Net::AMQP::Payload::Method.new('queue.unbind',
                                                0,
                                                $.name,
                                                ~$exchange,
                                                $routing-key,
                                                $%arguments);
-    $!channel-lock.protect: {
-        $!conn.write(Net::AMQP::Frame.new(type => 1, channel => $!channel, payload => $bind).Buf);
-    };
-
-    return $p;
+    $!channel.write-frame($unbind);
+    $p;
 }
 
 method purge( --> Promise ) {
@@ -120,11 +112,8 @@ method purge( --> Promise ) {
                                                0,
                                                $.name,
                                                0);
-    $!channel-lock.protect: {
-        $!conn.write(Net::AMQP::Frame.new(type => 1, channel => $!channel, payload => $purge).Buf);
-    };
-
-    return $p;
+    $!channel.write-frame($purge);
+    $p;
 }
 
 method delete(:$if-unused, :$if-empty --> Promise ) {
@@ -143,11 +132,8 @@ method delete(:$if-unused, :$if-empty --> Promise ) {
                                                 $if-unused,
                                                 $if-empty,
                                                 0);
-    $!channel-lock.protect: {
-        $!conn.write(Net::AMQP::Frame.new(type => 1, channel => $!channel, payload => $delete).Buf);
-    };
-
-    return $p;
+    $!channel.write-frame($delete);
+    $p;
 }
 
 method get {
@@ -179,11 +165,8 @@ method consume(:$consumer-tag = "", :$exclusive, :$no-local, :$ack, *%arguments 
                                                 $exclusive,
                                                 0,
                                                 $%arguments);
-    $!channel-lock.protect: {
-        $!conn.write(Net::AMQP::Frame.new(type => 1, channel => $!channel, payload => $consume).Buf);
-    };
-
-    return $p;
+    $!channel.write-frame($consume);
+    $p;
 }
 
 method cancel {

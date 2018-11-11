@@ -137,30 +137,26 @@ multi method declare-queue(*%args --> Promise ) {
 }
 
 multi method declare-queue($name, :$passive, :$durable, :$exclusive, :$auto-delete, *%arguments --> Promise ) {
-    return Net::AMQP::Queue.new(:$name,
+    Net::AMQP::Queue.new(:$name,
                                 :$passive,
                                 :$durable,
                                 :$exclusive,
                                 :$auto-delete,
                                 arguments => $%arguments,
-                                conn => $!conn,
-                                channel-lock => $!channel-lock,
                                 methods => $!methods,
                                 headers => $!headers,
                                 bodies => $!bodies,
-                                channel => $.id).declare;
+                                channel => self).declare;
 }
 
 method queue( Str $name --> Promise ) {
     my $p = Promise.new;
     $p.keep(Net::AMQP::Queue.new(:$name,
-                                conn => $!conn,
-                                channel-lock => $!channel-lock,
                                 methods => $!methods,
                                 headers => $!headers,
                                 bodies => $!bodies,
-                                channel => $.id));
-    return $p;
+                                channel => self));
+    $p;
 }
 
 proto method qos(|c) { * }
