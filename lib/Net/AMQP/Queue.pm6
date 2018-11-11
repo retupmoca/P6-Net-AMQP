@@ -20,6 +20,8 @@ has $!channel-lock;
 
 has Str $.consumer-tag;
 
+has Supplier $!message-supplier;
+
 submethod BUILD(:$!name, :$!passive, :$!durable, :$!exclusive, :$!auto-delete, :$!conn, :$!methods,
                 :$!headers, :$!bodies, :$!channel, :$!channel-lock, :$!arguments) { }
 
@@ -210,61 +212,64 @@ method !accept-message(Net::AMQP::Payload::Method $method where { $_.method-name
 }
 
 method message-supply( --> Supply ) {
-    my $s = Supplier.new;
 
-    my $delivery-lock = Lock.new;
+    $!message-supplier //= do {
+        my $s = Supplier.new;
 
-    $!methods.grep(*.method-name eq 'basic.deliver').tap(-> $method {
-        if self!accept-message($method) {
-            $delivery-lock.lock();
+        my $delivery-lock = Lock.new;
 
-            my $header-payload;
-            my $body = buf8.new();
+        $!methods.grep(*.method-name eq 'basic.deliver').tap(-> $method {
+            if self!accept-message($method) {
+                $delivery-lock.lock();
 
-            my $htap = $!headers.tap({
-                $htap.close;
-                $header-payload = $_;
-                $delivery-lock.unlock();
-            });
+                my $header-payload;
+                my $body = buf8.new();
 
-            my $btap = $!bodies.tap(-> $chunk {
-                $delivery-lock.protect: {
-                    $body ~= $chunk;
-                    if $header-payload.body-size == $body.bytes {
-                        # last chunk
-                        $btap.close;
+                my $htap = $!headers.tap({
+                    $htap.close;
+                    $header-payload = $_;
+                    $delivery-lock.unlock();
+                });
 
-                        my $h = $header-payload.headers;
-                        my %headers = %$h;
-                        %headers<content-type> = $header-payload.content-type;
-                        %headers<content-encoding> = $header-payload.content-encoding;
-                        %headers<delivery-mode> = $header-payload.delivery-mode;
-                        %headers<priority> = $header-payload.priority;
-                        %headers<correlation-id> = $header-payload.correlation-id;
-                        %headers<reply-to> = $header-payload.reply-to;
-                        %headers<expiration> = $header-payload.expiration;
-                        %headers<message-id> = $header-payload.message-id;
-                        %headers<timestamp> = $header-payload.timestamp;
-                        %headers<type> = $header-payload.type;
-                        %headers<user-id> = $header-payload.user-id;
-                        %headers<app-id> = $header-payload.app-id;
+                my $btap = $!bodies.tap(-> $chunk {
+                    $delivery-lock.protect: {
+                        $body ~= $chunk;
+                        if $header-payload.body-size == $body.bytes {
+                            # last chunk
+                            $btap.close;
 
-                        start {
-                        $s.emit(Message.new(consumer-tag => $method.arguments[0],
-                                            delivery-tag => $method.arguments[1],
-                                            redelivered => $method.arguments[2],
-                                            exchange-name => $method.arguments[3],
-                                            routing-key => $method.arguments[4],
-                                            :%headers,
-                                            :$body));
+                            my $h = $header-payload.headers;
+                            my %headers = %$h;
+                            %headers<content-type> = $header-payload.content-type;
+                            %headers<content-encoding> = $header-payload.content-encoding;
+                            %headers<delivery-mode> = $header-payload.delivery-mode;
+                            %headers<priority> = $header-payload.priority;
+                            %headers<correlation-id> = $header-payload.correlation-id;
+                            %headers<reply-to> = $header-payload.reply-to;
+                            %headers<expiration> = $header-payload.expiration;
+                            %headers<message-id> = $header-payload.message-id;
+                            %headers<timestamp> = $header-payload.timestamp;
+                            %headers<type> = $header-payload.type;
+                            %headers<user-id> = $header-payload.user-id;
+                            %headers<app-id> = $header-payload.app-id;
+
+                            start {
+                            $s.emit(Message.new(consumer-tag => $method.arguments[0],
+                                                delivery-tag => $method.arguments[1],
+                                                redelivered => $method.arguments[2],
+                                                exchange-name => $method.arguments[3],
+                                                routing-key => $method.arguments[4],
+                                                :%headers,
+                                                :$body));
+                            }
                         }
-                    }
-                };
-            });
-        }
-    });
-
-    return $s.Supply;
+                    };
+                });
+            }
+        });
+        $s;
+    }
+    $!message-supplier.Supply;
 }
 
 method recover {
