@@ -4,17 +4,16 @@ use Net::AMQP::Payload::Header;
 use Net::AMQP::Payload::Method;
 use Net::AMQP::Payload::Body;
 
-has $.name;
+has Str $.name;
 has $.type;
 has $.durable;
 has $.passive;
 
 has $!login;
 has $!frame-max;
-has $!methods;
 has $!channel;
 
-submethod BUILD(:$!name, :$!type, :$!durable, :$!passive, :$!methods,
+submethod BUILD(:$!name, :$!type, :$!durable, :$!passive,
                 :$!channel, :$!login, :$!frame-max) { }
 
 method Str( --> Str ) {
@@ -22,14 +21,7 @@ method Str( --> Str ) {
 }
 
 method declare( --> Promise )  {
-    my $p = Promise.new;
-    my $v = $p.vow;
-
-    my $tap = $!methods.grep(*.method-name eq 'exchange.declare-ok').tap({
-        $tap.close;
-
-        $v.keep(self);
-    });
+    my $p = $!channel.ok-method-promise('exchange.declare-ok', self);
 
     my $declare = Net::AMQP::Payload::Method.new('exchange.declare',
                                                  0,
@@ -46,14 +38,7 @@ method declare( --> Promise )  {
 }
 
 method delete($if-unused = 0 --> Promise) {
-    my $p = Promise.new;
-    my $v = $p.vow;
-
-    my $tap = $!methods.grep(*.method-name eq 'exchange.delete-ok').tap({
-        $tap.close;
-
-        $v.keep(1);
-    });
+    my $p = $!channel.ok-method-promise('exchange.delete-ok');
 
     my $delete = Net::AMQP::Payload::Method.new('exchange.delete',
                                                 0,
@@ -120,9 +105,9 @@ method publish(:$routing-key = "", Bool :$mandatory, Bool :$immediate, :$content
 }
 
 method return-supply(--> Supply) {
-    $!methods.grep(*.method-name eq 'basic.return');
+    $!channel.method-supply('basic.return');
 }
 
-method ack-supply {
-
+method ack-supply(--> Supply) {
+    $!channel.method-supply('basic.ack');
 }

@@ -105,7 +105,6 @@ method declare-exchange($name, $type, :$durable = 0, :$passive = 0 --> Promise) 
                             :$passive,
                             login => $!login,
                             frame-max => $!frame-max,
-                            methods => $!methods,
                             channel => self).declare;
 }
 
@@ -114,7 +113,6 @@ method exchange($name = "" --> Promise ) {
     $p.keep(Net::AMQP::Exchange.new(:$name,
                                    login => $!login,
                                    frame-max => $!frame-max,
-                                   methods => $!methods,
                                    channel => self));
     $p;
 }
@@ -186,19 +184,21 @@ method !basic-method(Str:D $method, Str:D $ok-method, *@args --> Promise ) {
     $p;
 }
 
+multi method method-supply(Str $method --> Supply) {
+    $!methods.grep(*.method-name eq $method);
+}
+
 # For ok methods where only want to keep a Promise.
 
 method ok-method-promise(Str:D $ok-method, $keep? --> Promise ) {
     my $p = Promise.new;
     my $v = $p.vow;
 
-    my $tap = $!methods.grep(*.method-name eq $ok-method).tap({
+    my $tap = self.method-supply($ok-method).tap({
         $tap.close;
-
         $v.keep($keep // True);
     });
     $p;
-
 }
 
 # This should be public so that we a) don't need to repear the frame creation pattern and
