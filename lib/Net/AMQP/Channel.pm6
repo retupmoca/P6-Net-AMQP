@@ -43,7 +43,7 @@ method open( --> Promise ) {
     $!closed     = Promise.new;
     $!closed-vow = $!closed.vow;
 
-    my $p = self.ok-method-promise('channel.open-ok', self);
+    my $p = self.ok-method-promise('channel.open-ok', keep => self);
 
     self.method-supply('channel.flow').tap({
         my $flow-ok = Net::AMQP::Payload::Method.new("channel.flow-ok",
@@ -190,13 +190,13 @@ multi method method-supply(Str $method --> Supply) {
 
 # For ok methods where only want to keep a Promise.
 
-method ok-method-promise(Str:D $ok-method, $keep? --> Promise ) {
+method ok-method-promise(Str:D $ok-method, Any:D :$keep = True, Bool :$with-method --> Promise ) {
     my $p = Promise.new;
     my $v = $p.vow;
 
-    my $tap = self.method-supply($ok-method).tap({
+    my $tap = self.method-supply($ok-method).tap(-> $method {
         $tap.close;
-        $v.keep($keep // True);
+        $v.keep($with-method ?? $method !! $keep );
     });
     $p;
 }

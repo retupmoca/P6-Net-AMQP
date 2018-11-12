@@ -21,7 +21,7 @@ method Str( --> Str ) {
 }
 
 method declare( --> Promise )  {
-    my $p = $!channel.ok-method-promise('exchange.declare-ok', self);
+    my $p = $!channel.ok-method-promise('exchange.declare-ok', keep => self);
 
     my $declare = Net::AMQP::Payload::Method.new('exchange.declare',
                                                  0,

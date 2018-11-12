@@ -9,10 +9,9 @@ has $.exclusive;
 has $.auto-delete;
 has $.arguments;
 
-has $!login;
-has $!methods;
-has $!headers;
-has $!bodies;
+has Supply $!methods;
+has Supply $!headers;
+has Supply $!bodies;
 has $!channel;
 
 has Str $.consumer-tag;
@@ -56,14 +55,8 @@ method declare( --> Promise ) {
 }
 
 method bind($exchange, $routing-key = '', *%arguments --> Promise) {
-    my $p = Promise.new;
-    my $v = $p.vow;
 
-    my $tap = $!methods.grep(*.method-name eq 'queue.bind-ok').tap({
-        $tap.close;
-
-        $v.keep(1);
-    });
+    my $p = $!channel.ok-method-promise('queue.bind-ok');
 
     my $bind = Net::AMQP::Payload::Method.new('queue.bind',
                                                0,
@@ -78,14 +71,8 @@ method bind($exchange, $routing-key = '', *%arguments --> Promise) {
 }
 
 method unbind($exchange, $routing-key = '', *%arguments --> Promise) {
-    my $p = Promise.new;
-    my $v = $p.vow;
 
-    my $tap = $!methods.grep(*.method-name eq 'queue.unbind-ok').tap({
-        $tap.close;
-
-        $v.keep(1);
-    });
+    my $p = $!channel.ok-method-promise('queue.unbind-ok');
 
     my $unbind = Net::AMQP::Payload::Method.new('queue.unbind',
                                                0,
@@ -116,14 +103,8 @@ method purge( --> Promise ) {
 }
 
 method delete(:$if-unused, :$if-empty --> Promise ) {
-    my $p = Promise.new;
-    my $v = $p.vow;
 
-    my $tap = $!methods.grep(*.method-name eq 'queue.delete-ok').tap({
-        $tap.close;
-
-        $v.keep(1);
-    });
+    my $p = $!channel.ok-method-promise('queue.delete-ok');
 
     my $delete = Net::AMQP::Payload::Method.new('queue.delete',
                                                 0,
@@ -145,7 +126,7 @@ method consume(:$consumer-tag = "", :$exclusive, :$no-local, :$ack, *%arguments 
 
     $!consumer-tag = $consumer-tag;
 
-    my $tap = $!methods.grep(*.method-name eq 'basic.consume-ok').tap({
+    my $tap = $!channel.method-supply('basic.consume-ok').tap({
         $tap.close;
 
         if not $!consumer-tag {
@@ -168,8 +149,21 @@ method consume(:$consumer-tag = "", :$exclusive, :$no-local, :$ack, *%arguments 
     $p;
 }
 
-method cancel {
+# Deliberately ignoring the no-wait as allowing this would
+# prevent us from finishing the message-supplier;
+method cancel( --> Promise ) {
 
+    my $p = $!channel.ok-method-promise('basic.cancel-ok');
+    $p.then({
+        if $!message-supplier.defined {
+            $!message-supplier.done;
+        }
+    });
+
+    my $cancel = Net::AMQP::Payload::Method.new('basic.cancel',$!consumer-tag, 0);
+    $!channel.write-frame($cancel);
+
+    $p;
 }
 
 class Message {
