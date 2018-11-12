@@ -45,7 +45,7 @@ method open( --> Promise ) {
 
     my $p = self.ok-method-promise('channel.open-ok', self);
 
-    $!methods.grep(*.method-name eq 'channel.flow').tap({
+    self.method-supply('channel.flow').tap({
         my $flow-ok = Net::AMQP::Payload::Method.new("channel.flow-ok",
                                                      $_.arguments[0]);
         if $_.arguments[0] {
@@ -64,13 +64,13 @@ method open( --> Promise ) {
 
     });
 
-    my $closed-tap = $!methods.grep(*.method-name eq 'channel.close').tap({
+    my $closed-tap = self.method-supply('channel.close').tap({
         $closed-tap.close;
         $!closed-vow.keep(True);
     });
 
     my $open = Net::AMQP::Payload::Method.new("channel.open", "");
-    $!conn.write(Net::AMQP::Frame.new(type => 1, channel => $.id, payload => $open).Buf);
+    self.write-frame($open, :no-lock);
 
     $p;
 }
