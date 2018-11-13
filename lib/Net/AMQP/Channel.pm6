@@ -75,7 +75,7 @@ method open( --> Promise ) {
     $p;
 }
 
-method close($reply-code, $reply-text, $class-id = 0, $method-id = 0 --> Promise ) {
+method close($reply-code = '', $reply-text = '', $class-id = 0, $method-id = 0 --> Promise ) {
     my $p = Promise.new;
     my $v = $p.vow;
 
