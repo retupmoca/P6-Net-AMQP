@@ -123,4 +123,4 @@ is $multi-one-count, 1, "first multi tap only saw one message";
 is $multi-two-count, 1, "second multi tap only saw one message";
 
 done-testing;
-# vim: ft=perl6
+# vim: ft=raku

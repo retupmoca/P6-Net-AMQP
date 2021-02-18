@@ -69,4 +69,4 @@ else {
 }
 
 done-testing;
-# vim: ft=perl6
+# vim: ft=raku

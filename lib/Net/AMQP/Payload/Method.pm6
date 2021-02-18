@@ -88,7 +88,7 @@ has @.arguments;
 has @.signature;
 has $.method-name;
 
-method Buf {
+method Buf( --> Buf) {
     my $args = buf8.new();
     my $bitsused = 0;
     my $lastarg = '';
@@ -157,7 +157,7 @@ multi method new(Blob $data is copy) {
         @arguments.push($value);
         $data .= subbuf($size);
     }
-    
+
     self.bless(:$class-id, :$method-id, :$method-name, :@signature, :@arguments);
 }
 

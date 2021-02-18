@@ -63,7 +63,7 @@ multi method new(*%args) {
     self.bless(|%args);
 }
 
-method Buf {
+method Buf( --> Buf ) {
     my $buf = buf8.new;
 
     $buf ~= pack('n', $.class-id);

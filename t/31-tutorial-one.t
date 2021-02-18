@@ -1,4 +1,4 @@
-#!perl6
+#!raku
 
 use v6.c;
 
@@ -63,4 +63,4 @@ await $n.close("", "");
 await $con;
 
 done-testing;
-# vim: expandtab shiftwidth=4 ft=perl6
+# vim: expandtab shiftwidth=4 ft=raku

@@ -1,7 +1,7 @@
 use Net::AMQP::Payload;
 unit class Net::AMQP::Payload::Heartbeat does Net::AMQP::Payload;
 
-method Buf {
+method Buf( --> Buf ) {
     return buf8.new();
 }
 

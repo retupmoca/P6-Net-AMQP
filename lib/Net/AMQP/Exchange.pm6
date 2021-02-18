@@ -52,7 +52,7 @@ method delete($if-unused = 0 --> Promise) {
 method publish(:$routing-key = "", Bool :$mandatory, Bool :$immediate, :$content-type, :$content-encoding ,
                :$persistent, :$priority, :$correlation-id, :$reply-to ,
                :$expiration, :$message-id, :$timestamp, :$type,
-               :$app-id, :$body is copy, *%headers) {
+               :$app-id, Blob :$body is copy, *%headers) {
 
 
     $!channel.protect: {

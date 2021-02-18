@@ -39,7 +39,9 @@ $exchange.return-supply.tap( -> $v {
 });
 
 
-lives-ok { $exchange.publish(routing-key => $routing, body => "Hello, World".encode, :mandatory) }, "publish with mandatory flag to non-existent routing key";
+lives-ok {
+    $exchange.publish(routing-key => $routing, body => "Hello, World".encode, :mandatory);
+}, "publish with mandatory flag to non-existent routing key";
 
 await Promise.anyof( $return-promise, Promise.in(5));
 

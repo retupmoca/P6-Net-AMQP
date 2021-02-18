@@ -1,6 +1,6 @@
-#!perl6
+#!/usr/bin/env raku
 
-# This does the same as the "printer.pl6" but
+# This does the same as the "printer" but
 # uses the react construct
 
 use v6;

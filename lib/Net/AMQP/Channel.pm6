@@ -221,4 +221,4 @@ method protect( Callable $block ) {
     $!channel-lock.protect: $block;
 }
 
-# vim: ft=perl6
+# vim: ft=raku

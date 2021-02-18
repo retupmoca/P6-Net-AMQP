@@ -1,3 +1,8 @@
+v0.1.14		Thu 18 Feb 14:38:51 GMT 2021
+	* Fix Buf coercion
+	* A bit of a spring clean
+v0.1.13     Thu Dec 6 19:07:50 2018 +0000
+    * Fix tags
 v0.1.12     Thu  6 Dec 14:17:22 GMT 2018
     * Implement Queue.cancel
 v0.1.11     Sat Apr 14 20:54:27 2018 +0100

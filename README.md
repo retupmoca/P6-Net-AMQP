@@ -143,8 +143,7 @@ broker, the tests will, by default, use a broker on ```localhost```
 with the default credentials.  The tests will be skipped if no
 server is available,
 
-Assuming you have a working installation of Rakudo Perl 6 then you
-will be able to install this with *zef* :
+Assuming you have a working installation of Rakudo then you will be able to install this with *zef* :
 
     zef install Net::AMQP
 
