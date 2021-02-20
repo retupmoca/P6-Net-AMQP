@@ -1,5 +1,4 @@
-
-use v6.c;
+use v6;
 
 use Net::AMQP;
 
@@ -19,4 +18,4 @@ module RabbitHelper {
     }
 }
 
-# vim: expandtab shiftwidth=4 ft=perl6
+# vim: expandtab shiftwidth=4 ft=raku

@@ -25,7 +25,7 @@ method Str( --> Str ) {
     $.name;
 }
 
-method declare( --> Promise ) {
+method declare(Bool :$consume, Str :$consumer-tag, Bool :$no-local, Bool :$ack, Str :$bind, Str :$routing-key = '' --> Promise ) {
     my $p = Promise.new;
     my $v = $p.vow;
 
@@ -51,7 +51,21 @@ method declare( --> Promise ) {
 
     $!channel.write-frame($declare);
 
-    $p;
+    if $consume || $bind {
+        $p.then( -> $v {
+            my $q = $v.result;
+            if $bind {
+                await $q.bind($bind, $routing-key);
+            }
+            if $consume {
+                await $q.consume(:$consumer-tag, :$no-local, :$ack );
+            }
+            $q
+        });
+    }
+    else {
+        $p;
+    }
 }
 
 method bind($exchange, $routing-key = '', *%arguments --> Promise) {
@@ -175,6 +189,11 @@ class Message {
 
     has %.headers;
     has $.body;
+    has Net::AMQP::Queue $.queue;
+
+    method ack(Bool :$multiple --> Promise) {
+        $!queue.ack($!delivery-tag, :$multiple);
+    }
 }
 
 method !accept-message(Net::AMQP::Payload::Method $method where { $_.method-name eq 'basic.deliver' } --> Bool) {
@@ -193,6 +212,8 @@ method message-supply( --> Supply ) {
         my $s = Supplier.new;
 
         my $delivery-lock = Lock.new;
+
+        my $queue = self;
 
         $!methods.grep(*.method-name eq 'basic.deliver').tap(-> $method {
             if self!accept-message($method) {
@@ -230,13 +251,15 @@ method message-supply( --> Supply ) {
                             %headers<app-id> = $header-payload.app-id;
 
                             start {
-                            $s.emit(Message.new(consumer-tag => $method.arguments[0],
-                                                delivery-tag => $method.arguments[1],
-                                                redelivered => $method.arguments[2],
-                                                exchange-name => $method.arguments[3],
-                                                routing-key => $method.arguments[4],
-                                                :%headers,
-                                                :$body));
+                                $s.emit(Message.new(consumer-tag => $method.arguments[0],
+                                                    delivery-tag => $method.arguments[1],
+                                                    redelivered => $method.arguments[2],
+                                                    exchange-name => $method.arguments[3],
+                                                    routing-key => $method.arguments[4],
+                                                    :%headers,
+                                                    :$body,
+                                                    :$queue,
+                                                ));
                             }
                         }
                     };
@@ -248,6 +271,10 @@ method message-supply( --> Supply ) {
     $!message-supplier.Supply;
 }
 
-method recover {
+method ack(Int() $delivery-tag, Bool :$multiple --> Promise ) {
+    $!channel.ack($delivery-tag, :$multiple);
+}
+
+method recover( Bool :$requeue --> Promise ) {
 
 }

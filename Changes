@@ -1,3 +1,7 @@
+v0.1.15		Sat 20 Feb 18:40:39 GMT 2021
+	* Add convenience arguments to declare-channel, declare-queue to simplify common patterns
+	* Allow a Message to be ack()ed directly without know the channel
+	* Tosh up the tests
 v0.1.14		Thu 18 Feb 14:38:51 GMT 2021
 	* Fix Buf coercion
 	* A bit of a spring clean

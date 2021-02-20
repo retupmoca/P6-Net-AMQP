@@ -30,7 +30,7 @@ has Supply $!method-supply;
 has Supply $!header-supply;
 has Supply $!body-supply;
 
-method connect(){
+method connect( --> Promise ) {
     my $p = Promise.new;
     $!vow = $p.vow;
     $!promise = $p;
@@ -187,7 +187,7 @@ method close($reply-code = '', $reply-text = '', $class-id = 0, $method-id = 0) 
     $!promise;
 }
 
-method open-channel(Int $id?) {
+method open-channel(Int $id?, Int :$prefetch) {
     if !$id {
         die "NYI - please pass an id for now";
     }
@@ -197,5 +197,6 @@ method open-channel(Int $id?) {
                                   frame-max => $!frame-max,
                                   headers => $!header-supply.grep( { $_<channel> == $id }).map( {$_<header> }),
                                   bodies => $!body-supply.grep({$_<channel> == $id }).map({$_<payload> }),
-                                  methods => $!method-supply.grep({ $_<channel> == $id }).map({ $_<method> })).open;
+                                  methods => $!method-supply.grep({ $_<channel> == $id }).map({ $_<method> }),
+                                  ).open(:$prefetch);
 }

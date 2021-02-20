@@ -30,7 +30,7 @@ has $!channel-lock;
 has Promise $.closed;
 has         $!closed-vow;
 
-submethod BUILD(:$!id, :$!conn, :$!methods, :$!headers, :$!bodies, :$!login, :$!frame-max) {
+submethod BUILD(:$!id, :$!conn, :$!methods, :$!headers, :$!bodies, :$!login, :$!frame-max ) {
     $!write-lock = Lock.new;
     $!channel-lock = Lock.new;
     my $wl = $!write-lock;
@@ -38,7 +38,7 @@ submethod BUILD(:$!id, :$!conn, :$!methods, :$!headers, :$!bodies, :$!login, :$!
     $!conn = class { method write($stuff) { $wl.protect: { $c.write($stuff); }; }; method real { $c }; };
 }
 
-method open( --> Promise ) {
+method open( Int :$prefetch --> Promise ) {
 
     $!closed     = Promise.new;
     $!closed-vow = $!closed.vow;
@@ -72,7 +72,13 @@ method open( --> Promise ) {
     my $open = Net::AMQP::Payload::Method.new("channel.open", "");
     self.write-frame($open, :no-lock);
 
-    $p;
+    # If prefetch was provided to constructor then set qos
+    if $prefetch {
+        $p.then( -> $v { my $s = $v.result; await $s.qos($prefetch); $s });
+    }
+    else {
+        $p;
+    }
 }
 
 method close($reply-code = '', $reply-text = '', $class-id = 0, $method-id = 0 --> Promise ) {
@@ -123,17 +129,17 @@ multi method declare-queue(*%args --> Promise ) {
     self.declare-queue('', |%args);
 }
 
-multi method declare-queue($name, :$passive, :$durable, :$exclusive, :$auto-delete, *%arguments --> Promise ) {
+multi method declare-queue($name, :$passive, :$durable, :$exclusive, :$auto-delete, Bool :$consume, Str :$consumer-tag = "", Bool :$no-local, Bool :$ack, Str :$bind, Str :$routing-key = '',  *%arguments --> Promise ) {
     Net::AMQP::Queue.new(:$name,
-                                :$passive,
-                                :$durable,
-                                :$exclusive,
-                                :$auto-delete,
-                                arguments => $%arguments,
-                                methods => $!methods,
-                                headers => $!headers,
-                                bodies => $!bodies,
-                                channel => self).declare;
+                         :$passive,
+                         :$durable,
+                         :$exclusive,
+                         :$auto-delete,
+                         arguments => $%arguments,
+                         methods => $!methods,
+                         headers => $!headers,
+                         bodies => $!bodies,
+                         channel => self).declare(:$consume, :$consumer-tag, :$no-local, :$ack, :$bind, :$routing-key);
 }
 
 method queue( Str $name --> Promise ) {
@@ -201,7 +207,7 @@ method ok-method-promise(Str:D $ok-method, Any:D :$keep = True, Bool :$with-meth
     $p;
 }
 
-# This should be public so that we a) don't need to repear the frame creation pattern and
+# This should be public so that we a) don't need to repeat the frame creation pattern and
 # b) only need to pass the channel to exchange and queue
 
 method write-frame(Net::AMQP::Payload $payload, Bool :$no-lock) {

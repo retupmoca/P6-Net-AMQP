@@ -4,7 +4,7 @@ use Test;
 use Net::AMQP;
 
 
-use lib "t/lib";
+use lib $*PROGRAM.parent.add('lib').Str;
 
 use RabbitHelper;
 
