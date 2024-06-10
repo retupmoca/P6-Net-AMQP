@@ -12,7 +12,7 @@ use lib $*PROGRAM.parent.add('lib').Str;
 use RabbitHelper;
 
 if check-rabbit() {
-    my $n = Net::AMQP.new;
+    my $n = get-amqp();
     await $n.connect;
     my $channel-promise = $n.open-channel(1);
     await $channel-promise;

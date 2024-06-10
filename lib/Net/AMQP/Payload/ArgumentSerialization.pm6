@@ -26,38 +26,39 @@ method serialize-arg($type, $value, $buf? is copy, $bitsused? = 0) {
             }
         }
         when 'octeti' {
-            die;
+            $buf = pack('C', $value);
         }
         when 'octet' {
             $buf = pack('C', $value);
         }
         when 'shorti' {
-            die;
+            $buf = pack('n', $value);
         }
         when 'short' {
             $buf = pack('n', $value);
         }
         when 'longi' {
-            die;
+            $buf = pack('N', $value);
         }
         when 'long' {
             $buf = pack('N', $value);
         }
         when 'longlongi' {
-
+            $buf = pack('N', $value +> 32);
+            $buf ~= pack('N', $value +& 0xFFFF);
         }
         when 'longlong' {
             $buf = pack('N', $value +> 32);
             $buf ~= pack('N', $value +& 0xFFFF);
         }
         when 'float' {
-            die;
+            die "serialising args of 'float' is NYI";
         }
         when 'double' {
-            die;
+            die "serialising args of 'double' is NYI";
         }
         when 'decimal' {
-            die;
+            die "serialising args of 'decimal' is NYI";
         }
         when 'shortstring' {
             if $value.chars > 255 {
@@ -78,7 +79,7 @@ method serialize-arg($type, $value, $buf? is copy, $bitsused? = 0) {
             $buf ~= pack('N', $value +& 0xFFFF);
         }
         when 'array' {
-            die;
+            die "serialising args of 'array' is NYI";
         }
         when 'table' {
             $buf = buf8.new();
@@ -121,37 +122,37 @@ method deserialize-arg($type, $data, $bitcount = 0) {
             return (($data.unpack('C') +> $bitcount) +& 1, 1);
         }
         when 'octeti' {
-            die;
+            return ($data.unpack('C'), 1);
         }
         when 'octet' {
             return ($data.unpack('C'), 1);
         }
         when 'shorti' {
-            die;
+            return ($data.unpack('n'), 2);
         }
         when 'short' {
             return ($data.unpack('n'), 2);
         }
         when 'longi' {
-            die;
+            return ($data.unpack('N'), 4);
         }
         when 'long' {
             return ($data.unpack('N'), 4);
         }
         when 'longlongi' {
-            die;
+            return (($data.unpack('N') +< 32) +| $data.subbuf(4).unpack('N'), 8);
         }
         when 'longlong' {
             return (($data.unpack('N') +< 32) +| $data.subbuf(4).unpack('N'), 8);
         }
         when 'float' {
-            die;
+            die "deserialising arguments of 'float' NYI";
         }
         when 'double' {
-            die;
+            die "deserialising arguments of 'double' NYI";
         }
         when 'decimal' {
-            die;
+            die "deserialising arguments of 'decimal' NYI";
         }
         when 'shortstring' {
             my $len = $data.unpack('C');
@@ -165,7 +166,7 @@ method deserialize-arg($type, $data, $bitcount = 0) {
             return (($data.unpack('N') +< 32) +| $data.subbuf(4).unpack('N'), 8);
         }
         when 'array' {
-            die;
+            die "deserialising arguments of 'array' NYI";
         }
         when 'table' {
             my %result;

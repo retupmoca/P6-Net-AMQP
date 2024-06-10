@@ -143,6 +143,16 @@ broker, the tests will, by default, use a broker on ```localhost```
 with the default credentials.  The tests will be skipped if no
 server is available,
 
+If you want to test against other than `localhost` or with different credentials then you can set the environment variables
+
+        * AMQP_HOST
+        * AMQP_PORT
+        * AMQP_LOGIN
+        * AMQP_PASSWORD
+        * AMQP_VHOST
+
+as appropriate before running the tests.
+
 Assuming you have a working installation of Rakudo then you will be able to install this with *zef* :
 
     zef install Net::AMQP

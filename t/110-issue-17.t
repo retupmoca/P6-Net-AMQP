@@ -15,7 +15,7 @@ if check-rabbit() {
     my $queue-name = "hello" ~ ((2**32 .. 2**64).pick + ($*PID +< 32) + time).base(16);
 
     {
-        my $n = Net::AMQP.new;
+        my $n = get-amqp();
         my $con =  await $n.connect;
         my $channel = $n.open-channel(1).result;
         my $queue = $channel.declare-queue($queue-name, :durable).result;
@@ -26,7 +26,7 @@ if check-rabbit() {
         await $con;
     }
     {
-        my $n = Net::AMQP.new;
+        my $n = get-amqp();
         my $con =  await $n.connect;
         my $channel = $n.open-channel(1).result;
         my $queue = $channel.declare-queue($queue-name, :durable).result;
@@ -45,7 +45,7 @@ if check-rabbit() {
     }
 
     {
-        my $n = Net::AMQP.new;
+        my $n = get-amqp();
         my $con =  await $n.connect;
         my $channel = $n.open-channel(1).result;
         my $queue = $channel.declare-queue($queue-name, :durable).result;

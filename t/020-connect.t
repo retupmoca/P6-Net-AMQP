@@ -6,7 +6,12 @@ plan 4;
 
 use Net::AMQP;
 
-my $n = Net::AMQP.new;
+use lib $*PROGRAM.parent.add('lib').Str;
+
+use RabbitHelper;
+
+
+my $n = get-amqp();
 
 ok 1, 'can create Net::AMQP object';
 

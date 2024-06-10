@@ -23,7 +23,7 @@ if check-rabbit() {
 # By way of a full up integrated test. Using the simplified API
 # This differs in that we don't close the connection
     my $p = start {
-        my $n = Net::AMQP.new;
+        my $n = get-amqp();
         my $connection = $n.connect.result;
         my Str $ret = "FAIL";
         react {
@@ -47,7 +47,7 @@ if check-rabbit() {
 
 # wait for the receiver to start up
     my ( $receiver, $receiver-promise) =  await $start-promise;
-    my $n = Net::AMQP.new;
+    my $n = get-amqp();
     my $con =  await $n.connect;
     my $channel = $n.open-channel(1).result;
     $channel.exchange.result.publish(routing-key => $queue-name, body => "Hello, World".encode, :persistent);

@@ -1,6 +1,6 @@
 {
     "name": "Net::AMQP",
-    "version": "0.1.15",
+    "version": "0.1.16",
     "auth": "github:retupmoca",
     "description": "AMQP (RabbitMQ) 0.9.1 client",
     "perl": "6.*",
